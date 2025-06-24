@@ -18,8 +18,17 @@ export interface DashboardData {
 export interface ScheduledTask {
   id: string;
   action: 'on' | 'off';
-  minutes: number;
-  seconds: number;
-  isActive: boolean;
+  device: string;
+  firebaseKey: string;
+  time: number;
+  isActive?: boolean;
   remainingTime?: number;
+}
+
+export interface FirebaseScheduledTask {
+  action: 'on' | 'off';
+  device: string;
+  firebaseKey: string;
+  id: string;
+  time: number;
 }

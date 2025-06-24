@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DashboardData, CircuitData, PosteData } from '../types';
+import { DashboardData, CircuitData, PosteData, ScheduledTask, FirebaseScheduledTask } from '../types';
 
 const FIREBASE_BASE_URL = 'https://esp-api-10fa5-default-rtdb.firebaseio.com';
 
@@ -77,6 +77,70 @@ export const useFirebaseData = () => {
     }
   };
 
+  const fetchScheduledTasks = async (): Promise<ScheduledTask[]> => {
+    try {
+      const response = await fetch(`${FIREBASE_BASE_URL}/agendamentos.json`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch scheduled tasks');
+      }
+      
+      const tasksData: Record<string, FirebaseScheduledTask> | null = await response.json();
+      
+      if (!tasksData) return [];
+      
+      return Object.values(tasksData).map(task => ({
+        ...task,
+        isActive: false,
+        remainingTime: task.time
+      }));
+    } catch (err) {
+      console.error('Error fetching scheduled tasks:', err);
+      return [];
+    }
+  };
+
+  const saveScheduledTask = async (task: ScheduledTask): Promise<void> => {
+    try {
+      const firebaseTask: FirebaseScheduledTask = {
+        action: task.action,
+        device: task.device,
+        firebaseKey: task.firebaseKey,
+        id: task.id,
+        time: task.time
+      };
+
+      const response = await fetch(`${FIREBASE_BASE_URL}/agendamentos/${task.id}.json`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(firebaseTask),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save scheduled task');
+      }
+    } catch (err) {
+      console.error('Error saving scheduled task:', err);
+      throw err;
+    }
+  };
+
+  const deleteScheduledTask = async (taskId: string): Promise<void> => {
+    try {
+      const response = await fetch(`${FIREBASE_BASE_URL}/agendamentos/${taskId}.json`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete scheduled task');
+      }
+    } catch (err) {
+      console.error('Error deleting scheduled task:', err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchData();
     
@@ -86,5 +150,15 @@ export const useFirebaseData = () => {
     return () => clearInterval(interval);
   }, []);
 
-  return { data, loading, error, isOnline, updateLedStatus, refetch: fetchData };
+  return { 
+    data, 
+    loading, 
+    error, 
+    isOnline, 
+    updateLedStatus, 
+    refetch: fetchData,
+    fetchScheduledTasks,
+    saveScheduledTask,
+    deleteScheduledTask
+  };
 };

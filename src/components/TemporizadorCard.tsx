@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, Power, PowerOff, Plus, Minus, Play, Pause, Trash2 } from 'lucide-react';
+import { Timer, Power, PowerOff, Plus, Minus, Play, Pause, Trash2, Edit3, Check, X } from 'lucide-react';
 import { ScheduledTask } from '../types';
+import { useFirebaseData } from '../hooks/useFirebaseData';
 
 interface TemporizadorCardProps {
   onToggleLight: (status: 'on' | 'off') => Promise<void>;
@@ -13,11 +14,25 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
   currentStatus, 
   loading 
 }) => {
+  const { fetchScheduledTasks, saveScheduledTask, deleteScheduledTask } = useFirebaseData();
   const [isUpdating, setIsUpdating] = useState(false);
   const [minutes, setMinutes] = useState(0);
   const [seconds, setSeconds] = useState(30);
   const [action, setAction] = useState<'on' | 'off'>('on');
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
+  const [editingMinutes, setEditingMinutes] = useState(false);
+  const [editingSeconds, setEditingSeconds] = useState(false);
+  const [tempMinutes, setTempMinutes] = useState('0');
+  const [tempSeconds, setTempSeconds] = useState('30');
+
+  // Load tasks from Firebase on component mount
+  useEffect(() => {
+    const loadTasks = async () => {
+      const firebaseTasks = await fetchScheduledTasks();
+      setTasks(firebaseTasks);
+    };
+    loadTasks();
+  }, [fetchScheduledTasks]);
 
   const handleToggle = async (status: 'on' | 'off') => {
     setIsUpdating(true);
@@ -28,27 +43,33 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
     }
   };
 
-  const addTask = () => {
+  const addTask = async () => {
     if (minutes === 0 && seconds === 0) return;
     
     const newTask: ScheduledTask = {
       id: Date.now().toString(),
       action,
-      minutes,
-      seconds,
+      device: 'Luz dos Postes',
+      firebaseKey: 'led/status',
+      time: minutes * 60 + seconds,
       isActive: false,
       remainingTime: minutes * 60 + seconds
     };
     
-    setTasks([...tasks, newTask]);
-    setMinutes(0);
-    setSeconds(30);
+    try {
+      await saveScheduledTask(newTask);
+      setTasks([...tasks, newTask]);
+      setMinutes(0);
+      setSeconds(30);
+    } catch (error) {
+      console.error('Failed to save task:', error);
+    }
   };
 
   const startTask = (taskId: string) => {
     setTasks(tasks.map(task => 
       task.id === taskId 
-        ? { ...task, isActive: true, remainingTime: task.minutes * 60 + task.seconds }
+        ? { ...task, isActive: true, remainingTime: task.time }
         : { ...task, isActive: false }
     ));
   };
@@ -59,14 +80,51 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
     ));
   };
 
-  const removeTask = (taskId: string) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+  const removeTask = async (taskId: string) => {
+    try {
+      await deleteScheduledTask(taskId);
+      setTasks(tasks.filter(task => task.id !== taskId));
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    }
   };
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleMinutesEdit = () => {
+    setTempMinutes(minutes.toString());
+    setEditingMinutes(true);
+  };
+
+  const handleSecondsEdit = () => {
+    setTempSeconds(seconds.toString());
+    setEditingSeconds(true);
+  };
+
+  const confirmMinutesEdit = () => {
+    const value = Math.max(0, Math.min(59, parseInt(tempMinutes) || 0));
+    setMinutes(value);
+    setEditingMinutes(false);
+  };
+
+  const confirmSecondsEdit = () => {
+    const value = Math.max(0, Math.min(59, parseInt(tempSeconds) || 0));
+    setSeconds(value);
+    setEditingSeconds(false);
+  };
+
+  const cancelMinutesEdit = () => {
+    setTempMinutes(minutes.toString());
+    setEditingMinutes(false);
+  };
+
+  const cancelSecondsEdit = () => {
+    setTempSeconds(seconds.toString());
+    setEditingSeconds(false);
   };
 
   useEffect(() => {
@@ -195,9 +253,41 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
                   >
                     <Minus size={16} />
                   </button>
-                  <span className="w-12 text-center text-gray-900 dark:text-gray-100 font-mono">
-                    {minutes.toString().padStart(2, '0')}
-                  </span>
+                  
+                  {editingMinutes ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={tempMinutes}
+                        onChange={(e) => setTempMinutes(e.target.value)}
+                        className="w-12 text-center text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 text-sm font-mono"
+                        min="0"
+                        max="59"
+                        autoFocus
+                      />
+                      <button
+                        onClick={confirmMinutesEdit}
+                        className="p-0.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
+                      >
+                        <Check size={12} />
+                      </button>
+                      <button
+                        onClick={cancelMinutesEdit}
+                        className="p-0.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleMinutesEdit}
+                      className="w-12 text-center text-gray-900 dark:text-gray-100 font-mono hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-1 py-0.5 group"
+                    >
+                      <span className="group-hover:hidden">{minutes.toString().padStart(2, '0')}</span>
+                      <Edit3 size={12} className="hidden group-hover:inline mx-auto" />
+                    </button>
+                  )}
+                  
                   <button
                     onClick={() => setMinutes(Math.min(59, minutes + 1))}
                     className="p-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -216,9 +306,41 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
                   >
                     <Minus size={16} />
                   </button>
-                  <span className="w-12 text-center text-gray-900 dark:text-gray-100 font-mono">
-                    {seconds.toString().padStart(2, '0')}
-                  </span>
+                  
+                  {editingSeconds ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={tempSeconds}
+                        onChange={(e) => setTempSeconds(e.target.value)}
+                        className="w-12 text-center text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 text-sm font-mono"
+                        min="0"
+                        max="59"
+                        autoFocus
+                      />
+                      <button
+                        onClick={confirmSecondsEdit}
+                        className="p-0.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
+                      >
+                        <Check size={12} />
+                      </button>
+                      <button
+                        onClick={cancelSecondsEdit}
+                        className="p-0.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleSecondsEdit}
+                      className="w-12 text-center text-gray-900 dark:text-gray-100 font-mono hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-1 py-0.5 group"
+                    >
+                      <span className="group-hover:hidden">{seconds.toString().padStart(2, '0')}</span>
+                      <Edit3 size={12} className="hidden group-hover:inline mx-auto" />
+                    </button>
+                  )}
+                  
                   <button
                     onClick={() => setSeconds(Math.min(59, seconds + 1))}
                     className="p-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -251,8 +373,13 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
                       task.action === 'on' ? 'bg-green-500' : 'bg-red-500'
                     }`}></div>
                     <span className="text-sm text-gray-900 dark:text-gray-100">
-                      {task.action === 'on' ? 'Ligar' : 'Desligar'} em {formatTime(task.remainingTime || (task.minutes * 60 + task.seconds))}
+                      {task.action === 'on' ? 'Ligar' : 'Desligar'} em {formatTime(task.remainingTime || task.time)}
                     </span>
+                    {task.isActive && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        Executando...
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     {task.isActive ? (
@@ -285,6 +412,10 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
 
         <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
           Controle manual e programado da iluminação dos postes
+          <br />
+          <span className="text-blue-600 dark:text-blue-400">
+            Tarefas sincronizadas entre dispositivos
+          </span>
         </div>
       </div>
     </div>
