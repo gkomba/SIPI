@@ -89,6 +89,21 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
     }
   };
 
+  const executeAndDeleteTask = async (task: ScheduledTask) => {
+    try {
+      // Execute the task
+      await handleToggle(task.action);
+      
+      // Delete the task from Firebase and local state
+      await deleteScheduledTask(task.id);
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
+      
+      console.log(`Task ${task.id} executed and deleted successfully`);
+    } catch (error) {
+      console.error('Failed to execute and delete task:', error);
+    }
+  };
+
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
@@ -136,13 +151,14 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
           const newRemainingTime = task.remainingTime - 1;
           
           if (newRemainingTime <= 0) {
-            // Execute the task
-            handleToggle(task.action);
-            return { ...task, isActive: false, remainingTime: 0 };
+            // Execute the task and delete it
+            executeAndDeleteTask(task);
+            // Return null to indicate this task should be removed
+            return null;
           }
           
           return { ...task, remainingTime: newRemainingTime };
-        })
+        }).filter(task => task !== null) as ScheduledTask[]
       );
     }, 1000);
 
@@ -386,7 +402,7 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
           Controle manual e programado da iluminação dos postes
           <br />
           <span className="text-blue-600 dark:text-blue-400">
-            Tarefas sincronizadas entre dispositivos
+            Tarefas sincronizadas entre dispositivos • Auto-exclusão após execução
           </span>
         </div>
       </div>
