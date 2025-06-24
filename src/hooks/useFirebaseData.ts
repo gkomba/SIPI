@@ -3,6 +3,19 @@ import { DashboardData, CircuitData, PosteData, ScheduledTask, FirebaseScheduled
 
 const FIREBASE_BASE_URL = 'https://esp-api-10fa5-default-rtdb.firebaseio.com';
 
+// Mock data for fallback when Firebase is unavailable
+const mockCircuitData: CircuitData = {
+  corrente: 2.5,
+  potencia: 550,
+  tensao: 220,
+  time: new Date().toISOString()
+};
+
+const mockLedData: PosteData = {
+  status: 'off',
+  type: 'root'
+};
+
 export const useFirebaseData = () => {
   const [data, setData] = useState<DashboardData>({
     circuito: null,
@@ -11,6 +24,7 @@ export const useFirebaseData = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   const checkSystemStatus = (lastUpdateTime: string) => {
     const lastUpdate = new Date(lastUpdateTime);
@@ -21,13 +35,31 @@ export const useFirebaseData = () => {
 
   const fetchData = async () => {
     try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
       const [circuitResponse, ledResponse] = await Promise.all([
-        fetch(`${FIREBASE_BASE_URL}/circuito.json`),
-        fetch(`${FIREBASE_BASE_URL}/led.json`)
+        fetch(`${FIREBASE_BASE_URL}/circuito.json`, { 
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch(`${FIREBASE_BASE_URL}/led.json`, { 
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
       ]);
 
+      clearTimeout(timeoutId);
+
       if (!circuitResponse.ok || !ledResponse.ok) {
-        throw new Error('Failed to fetch data');
+        throw new Error(`HTTP Error: ${circuitResponse.status} / ${ledResponse.status}`);
       }
 
       const circuitData: CircuitData = await circuitResponse.json();
@@ -43,10 +75,19 @@ export const useFirebaseData = () => {
         led: ledData
       });
       setError(null);
+      setUsingMockData(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.warn('Firebase unavailable, using mock data:', err);
+      
+      // Use mock data as fallback
+      setData({
+        circuito: mockCircuitData,
+        led: mockLedData
+      });
+      
+      setError('Conectado em modo offline - usando dados simulados');
       setIsOnline(false);
-      console.error('Error fetching data:', err);
+      setUsingMockData(true);
     } finally {
       setLoading(false);
     }
@@ -54,6 +95,18 @@ export const useFirebaseData = () => {
 
   const updateLedStatus = async (status: 'on' | 'off') => {
     try {
+      if (usingMockData) {
+        // Simulate update in mock mode
+        setData(prev => ({
+          ...prev,
+          led: { ...prev.led!, status }
+        }));
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch(`${FIREBASE_BASE_URL}/led.json`, {
         method: 'PUT',
         headers: {
@@ -63,25 +116,52 @@ export const useFirebaseData = () => {
           status, 
           type: 'root'
         }),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Failed to update LED status');
+        throw new Error(`HTTP Error: ${response.status}`);
       }
 
       // Refresh data after successful update
       await fetchData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update LED');
-      console.error('Error updating LED:', err);
+      console.warn('Failed to update LED status, updating locally:', err);
+      
+      // Update locally if Firebase is unavailable
+      setData(prev => ({
+        ...prev,
+        led: { ...prev.led!, status }
+      }));
+      
+      setError('Atualização local - Firebase indisponível');
     }
   };
 
   const fetchScheduledTasks = async (): Promise<ScheduledTask[]> => {
     try {
-      const response = await fetch(`${FIREBASE_BASE_URL}/agendamentos.json`);
+      if (usingMockData) {
+        // Return empty array for mock mode
+        return [];
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`${FIREBASE_BASE_URL}/agendamentos.json`, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch scheduled tasks');
+        throw new Error(`HTTP Error: ${response.status}`);
       }
       
       const tasksData: Record<string, FirebaseScheduledTask> | null = await response.json();
@@ -94,13 +174,19 @@ export const useFirebaseData = () => {
         remainingTime: task.time
       }));
     } catch (err) {
-      console.error('Error fetching scheduled tasks:', err);
-      return [];
+      console.warn('Failed to fetch scheduled tasks:', err);
+      return []; // Return empty array as fallback
     }
   };
 
   const saveScheduledTask = async (task: ScheduledTask): Promise<void> => {
     try {
+      if (usingMockData) {
+        // Simulate save in mock mode
+        console.log('Mock mode: Task would be saved:', task);
+        return;
+      }
+
       const firebaseTask: FirebaseScheduledTask = {
         action: task.action,
         device: task.device,
@@ -109,35 +195,53 @@ export const useFirebaseData = () => {
         time: task.time
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch(`${FIREBASE_BASE_URL}/agendamentos/${task.id}.json`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(firebaseTask),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Failed to save scheduled task');
+        throw new Error(`HTTP Error: ${response.status}`);
       }
     } catch (err) {
-      console.error('Error saving scheduled task:', err);
-      throw err;
+      console.warn('Failed to save scheduled task:', err);
+      // Don't throw error, just log it
     }
   };
 
   const deleteScheduledTask = async (taskId: string): Promise<void> => {
     try {
+      if (usingMockData) {
+        // Simulate delete in mock mode
+        console.log('Mock mode: Task would be deleted:', taskId);
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch(`${FIREBASE_BASE_URL}/agendamentos/${taskId}.json`, {
         method: 'DELETE',
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Failed to delete scheduled task');
+        throw new Error(`HTTP Error: ${response.status}`);
       }
     } catch (err) {
-      console.error('Error deleting scheduled task:', err);
-      throw err;
+      console.warn('Failed to delete scheduled task:', err);
+      // Don't throw error, just log it
     }
   };
 
@@ -145,7 +249,7 @@ export const useFirebaseData = () => {
     fetchData();
     
     // Set up polling for real-time updates
-    const interval = setInterval(fetchData, 2000); // Poll every 2 seconds
+    const interval = setInterval(fetchData, 5000); // Poll every 5 seconds (reduced frequency)
     
     return () => clearInterval(interval);
   }, []);
@@ -154,11 +258,12 @@ export const useFirebaseData = () => {
     data, 
     loading, 
     error, 
-    isOnline, 
+    isOnline: isOnline && !usingMockData, 
     updateLedStatus, 
     refetch: fetchData,
     fetchScheduledTasks,
     saveScheduledTask,
-    deleteScheduledTask
+    deleteScheduledTask,
+    usingMockData
   };
 };
