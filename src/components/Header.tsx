@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme }) => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-              sistema de Iluminação Pública Inteligente
+              Sistema de Iluminação Pública Inteligente
             </h1>
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <Clock size={16} />
