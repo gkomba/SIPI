@@ -61,7 +61,7 @@ export const useFirebaseData = () => {
         },
         body: JSON.stringify({ 
           status, 
-          type: data.led?.type || 'ldr'
+          type: 'root'
         }),
       });
 
