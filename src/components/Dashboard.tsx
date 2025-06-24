@@ -41,7 +41,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 dark:text-gray-300">
-                Monitoramento em tempo real do sistema de iluminação
+                Monitoramento em tempo real do sistema de iluminação Pública Inteligente
               </p>
             </div>
             <button
