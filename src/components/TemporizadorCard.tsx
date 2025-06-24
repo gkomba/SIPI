@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, Power, PowerOff, Play, Pause, Trash2, Edit3, Check, X } from 'lucide-react';
+import { Timer, Power, PowerOff, Plus, Minus, Play, Pause, Trash2 } from 'lucide-react';
 import { ScheduledTask } from '../types';
 import { useFirebaseData } from '../hooks/useFirebaseData';
 
@@ -20,10 +20,6 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
   const [seconds, setSeconds] = useState(30);
   const [action, setAction] = useState<'on' | 'off'>('on');
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
-  const [editingMinutes, setEditingMinutes] = useState(false);
-  const [editingSeconds, setEditingSeconds] = useState(false);
-  const [tempMinutes, setTempMinutes] = useState('0');
-  const [tempSeconds, setTempSeconds] = useState('30');
 
   // Load tasks from Firebase on component mount
   useEffect(() => {
@@ -94,11 +90,13 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
       // Execute the task
       await handleToggle(task.action);
       
-      // Delete the task from Firebase and local state
+      // Delete the task from Firebase database
       await deleteScheduledTask(task.id);
+      
+      // Remove from local state
       setTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
       
-      console.log(`Task ${task.id} executed and deleted successfully`);
+      console.log(`Task ${task.id} executed and deleted from database successfully`);
     } catch (error) {
       console.error('Failed to execute and delete task:', error);
     }
@@ -110,38 +108,6 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleMinutesEdit = () => {
-    setTempMinutes(minutes.toString());
-    setEditingMinutes(true);
-  };
-
-  const handleSecondsEdit = () => {
-    setTempSeconds(seconds.toString());
-    setEditingSeconds(true);
-  };
-
-  const confirmMinutesEdit = () => {
-    const value = Math.max(0, Math.min(59, parseInt(tempMinutes) || 0));
-    setMinutes(value);
-    setEditingMinutes(false);
-  };
-
-  const confirmSecondsEdit = () => {
-    const value = Math.max(0, Math.min(59, parseInt(tempSeconds) || 0));
-    setSeconds(value);
-    setEditingSeconds(false);
-  };
-
-  const cancelMinutesEdit = () => {
-    setTempMinutes(minutes.toString());
-    setEditingMinutes(false);
-  };
-
-  const cancelSecondsEdit = () => {
-    setTempSeconds(seconds.toString());
-    setEditingSeconds(false);
-  };
-
   useEffect(() => {
     const interval = setInterval(() => {
       setTasks(prevTasks => 
@@ -151,7 +117,7 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
           const newRemainingTime = task.remainingTime - 1;
           
           if (newRemainingTime <= 0) {
-            // Execute the task and delete it
+            // Execute the task and delete it from database
             executeAndDeleteTask(task);
             // Return null to indicate this task should be removed
             return null;
@@ -262,79 +228,43 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-gray-600 dark:text-gray-300 mb-2 block">Minutos</label>
-                <div className="flex items-center justify-center">
-                  {editingMinutes ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        value={tempMinutes}
-                        onChange={(e) => setTempMinutes(e.target.value)}
-                        className="w-16 text-center text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm font-mono"
-                        min="0"
-                        max="59"
-                        autoFocus
-                      />
-                      <button
-                        onClick={confirmMinutesEdit}
-                        className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        onClick={cancelMinutesEdit}
-                        className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleMinutesEdit}
-                      className="w-16 text-center text-gray-900 dark:text-gray-100 font-mono hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1 group border border-gray-300 dark:border-gray-600"
-                    >
-                      <span className="group-hover:hidden">{minutes.toString().padStart(2, '0')}</span>
-                      <Edit3 size={14} className="hidden group-hover:inline mx-auto" />
-                    </button>
-                  )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setMinutes(Math.max(0, minutes - 1))}
+                    className="p-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <span className="w-12 text-center text-gray-900 dark:text-gray-100 font-mono">
+                    {minutes.toString().padStart(2, '0')}
+                  </span>
+                  <button
+                    onClick={() => setMinutes(Math.min(59, minutes + 1))}
+                    className="p-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <Plus size={16} />
+                  </button>
                 </div>
               </div>
 
               <div>
                 <label className="text-sm text-gray-600 dark:text-gray-300 mb-2 block">Segundos</label>
-                <div className="flex items-center justify-center">
-                  {editingSeconds ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        value={tempSeconds}
-                        onChange={(e) => setTempSeconds(e.target.value)}
-                        className="w-16 text-center text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm font-mono"
-                        min="0"
-                        max="59"
-                        autoFocus
-                      />
-                      <button
-                        onClick={confirmSecondsEdit}
-                        className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        onClick={cancelSecondsEdit}
-                        className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleSecondsEdit}
-                      className="w-16 text-center text-gray-900 dark:text-gray-100 font-mono hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1 group border border-gray-300 dark:border-gray-600"
-                    >
-                      <span className="group-hover:hidden">{seconds.toString().padStart(2, '0')}</span>
-                      <Edit3 size={14} className="hidden group-hover:inline mx-auto" />
-                    </button>
-                  )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSeconds(Math.max(0, seconds - 1))}
+                    className="p-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <span className="w-12 text-center text-gray-900 dark:text-gray-100 font-mono">
+                    {seconds.toString().padStart(2, '0')}
+                  </span>
+                  <button
+                    onClick={() => setSeconds(Math.min(59, seconds + 1))}
+                    className="p-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <Plus size={16} />
+                  </button>
                 </div>
               </div>
             </div>
