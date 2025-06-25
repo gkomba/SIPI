@@ -22,7 +22,7 @@ interface SystemData {
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, systemData, apiKey } = await req.json()
+    const { messages, apiKey, systemData } = await req.json()
 
     if (!apiKey) {
       return new Response('API key is required', { status: 400 })
@@ -74,7 +74,7 @@ Responda sempre em português e seja útil e eficiente.`
       model: google('gemini-1.5-flash', { apiKey }),
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: message }
+        ...messages
       ],
       temperature: 0.7,
       maxTokens: 1024

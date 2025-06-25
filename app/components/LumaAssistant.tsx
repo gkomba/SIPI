@@ -2,14 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Bot, Send, Upload, X, Lightbulb, Timer, Database, Zap, Key, AlertCircle } from 'lucide-react'
-
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: Date
-  isStreaming?: boolean
-}
+import { useChat } from 'ai/react'
 
 interface LumaAssistantProps {
   isOpen: boolean
@@ -24,23 +17,34 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
   onToggleLight, 
   onScheduleTask 
 }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente. Criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá-lo?',
-      timestamp: new Date()
-    }
-  ])
-  const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [apiKey, setApiKey] = useState('')
   const [showApiKeyInput, setShowApiKeyInput] = useState(false)
   const [apiKeyError, setApiKeyError] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const streamingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit: originalHandleSubmit,
+    isLoading,
+    setMessages
+  } = useChat({
+    api: '/api/chat',
+    initialMessages: [
+      {
+        id: '1',
+        role: 'assistant',
+        content: 'Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente. Criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá-lo?'
+      }
+    ],
+    body: {
+      apiKey,
+      systemData: null // Will be populated when needed
+    }
+  })
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -129,72 +133,6 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     return { type: 'general' }
   }
 
-  // Função para limpar formatação com asteriscos e melhorar legibilidade
-  const cleanFormatting = (text: string): string => {
-    return text
-      // Remove asteriscos de formatação
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      // Limpa formatação markdown desnecessária
-      .replace(/#{1,6}\s/g, '')
-      // Melhora espaçamento
-      .replace(/\n{3,}/g, '\n\n')
-      // Remove espaços extras
-      .replace(/[ \t]+/g, ' ')
-      .trim()
-  }
-
-  // Função para simular streaming de texto caractere por caractere
-  const simulateTextStreaming = (text: string, messageId: string, initialContent: string = '') => {
-    // Limpar formatação antes do streaming
-    const cleanText = cleanFormatting(text)
-    let currentIndex = 0
-    let displayedContent = initialContent
-    
-    const streamNextChar = () => {
-      if (currentIndex < cleanText.length) {
-        displayedContent += cleanText[currentIndex]
-        currentIndex++
-        
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: displayedContent, isStreaming: true }
-              : msg
-          )
-        )
-        
-        // Velocidade variável baseada no caractere
-        let delay = 25 // Velocidade base mais rápida
-        const char = cleanText[currentIndex - 1]
-        
-        if (char === '.' || char === '!' || char === '?') {
-          delay = 150 // Pausa após pontuação
-        } else if (char === ',' || char === ';') {
-          delay = 80 // Pausa média após vírgulas
-        } else if (char === ' ') {
-          delay = 35 // Pausa pequena após espaços
-        } else if (char === '\n') {
-          delay = 100 // Pausa para quebras de linha
-        }
-        
-        streamingTimeoutRef.current = setTimeout(streamNextChar, delay)
-      } else {
-        // Finalizar streaming
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: displayedContent, isStreaming: false }
-              : msg
-          )
-        )
-        setIsLoading(false)
-      }
-    }
-    
-    streamNextChar()
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -205,24 +143,8 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       return
     }
 
-    // Limpar timeout anterior se existir
-    if (streamingTimeoutRef.current) {
-      clearTimeout(streamingTimeoutRef.current)
-    }
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-      timestamp: new Date()
-    }
-
-    setMessages(prev => [...prev, userMessage])
     const currentInput = input
-    setInput('')
-    setSelectedFiles([])
-    setIsLoading(true)
-
+    
     try {
       // Detectar tipo de comando
       const command = detectCommand(currentInput)
@@ -258,134 +180,45 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         }
       }
 
-      // Criar mensagem de resposta da IA
-      const assistantMessageId = (Date.now() + 1).toString()
-      const assistantMessage: Message = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: actionResult,
-        timestamp: new Date(),
-        isStreaming: true
-      }
+      // Se há resultado de ação, adicionar ao input
+      const enhancedInput = actionResult ? `${actionResult}${currentInput}` : currentInput
 
-      setMessages(prev => [...prev, assistantMessage])
-
-      // Gerar resposta da IA
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: currentInput,
+      // Usar o handleSubmit nativo do useChat com dados adicionais
+      originalHandleSubmit(e, {
+        body: {
+          apiKey,
           systemData,
-          apiKey
-        })
+          message: enhancedInput
+        }
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status}`)
-      }
-
-      if (!response.body) {
-        throw new Error('No response body')
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let fullAiResponse = ''
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value, { stream: true })
-          
-          // Parse the streaming data properly
-          const lines = chunk.split('\n')
-          for (const line of lines) {
-            if (line.startsWith('0:')) {
-              // Extract the JSON content from the streaming format
-              try {
-                const jsonStr = line.substring(2) // Remove '0:' prefix
-                const content = JSON.parse(jsonStr)
-                if (typeof content === 'string') {
-                  fullAiResponse += content
-                }
-              } catch (parseError) {
-                // If it's not valid JSON, treat as plain text
-                const content = line.substring(2)
-                if (content && !content.startsWith('"') && !content.includes('finishReason')) {
-                  fullAiResponse += content
-                }
-              }
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock()
-      }
-
-      // Iniciar streaming visual do texto completo
-      if (fullAiResponse.trim()) {
-        simulateTextStreaming(fullAiResponse, assistantMessageId, actionResult)
-      } else {
-        // Se não há resposta da IA, finalizar com apenas o resultado da ação
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === assistantMessageId 
-              ? { ...msg, content: actionResult || 'Comando executado com sucesso!', isStreaming: false }
-              : msg
-          )
-        )
-        setIsLoading(false)
-      }
+      setSelectedFiles([])
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error)
-      
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua solicitação. Verifique sua conexão e API key, e tente novamente.',
-        timestamp: new Date()
-      }
-
-      setMessages(prev => [...prev, errorMessage])
-      setIsLoading(false)
     }
   }
-
-  // Limpar timeout quando componente for desmontado
-  useEffect(() => {
-    return () => {
-      if (streamingTimeoutRef.current) {
-        clearTimeout(streamingTimeoutRef.current)
-      }
-    }
-  }, [])
 
   const quickActions = [
     {
       icon: Lightbulb,
       label: 'Ligar Luzes',
-      action: () => setInput('Ligar as luzes dos postes')
+      action: () => handleInputChange({ target: { value: 'Ligar as luzes dos postes' } } as any)
     },
     {
       icon: Zap,
       label: 'Desligar Luzes',
-      action: () => setInput('Desligar as luzes dos postes')
+      action: () => handleInputChange({ target: { value: 'Desligar as luzes dos postes' } } as any)
     },
     {
       icon: Database,
       label: 'Analisar Sistema',
-      action: () => setInput('Analisar dados do sistema')
+      action: () => handleInputChange({ target: { value: 'Analisar dados do sistema' } } as any)
     },
     {
       icon: Timer,
       label: 'Programar Tarefa',
-      action: () => setInput('Programar tarefa para ligar luzes em 5 minutos')
+      action: () => handleInputChange({ target: { value: 'Programar tarefa para ligar luzes em 5 minutos' } } as any)
     }
   ]
 
@@ -514,17 +347,10 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
               }`}
             >
               <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-              {message.isStreaming && (
-                <div className="flex items-center gap-1 mt-2">
-                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse"></div>
-                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-              )}
               <p className={`text-xs mt-2 ${
                 message.role === 'user' ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
               }`}>
-                {formatTime(message.timestamp)}
+                {formatTime(new Date(message.createdAt || Date.now()))}
               </p>
             </div>
           </div>
@@ -572,7 +398,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
           <div className="flex-1">
             <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               placeholder="Digite sua pergunta ou comando..."
               className="w-full resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               rows={2}
