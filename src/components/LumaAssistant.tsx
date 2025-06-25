@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, Upload, X, Lightbulb, Timer, Database, Zap } from 'lucide-react';
+import { generateAIResponse, analyzeSystemData, detectCommand, SystemData } from '../lib/ai';
 
 interface Message {
   id: string;
@@ -60,114 +61,6 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     });
   };
 
-  const analyzeSystemData = async () => {
-    try {
-      const response = await fetch('https://esp-api-10fa5-default-rtdb.firebaseio.com/sistema.json');
-      if (!response.ok) {
-        throw new Error('Erro ao acessar a base de dados');
-      }
-      const systemData = await response.json();
-      return systemData;
-    } catch (error) {
-      return null;
-    }
-  };
-
-  const processCommand = async (userInput: string): Promise<string> => {
-    const input = userInput.toLowerCase();
-    
-    // Comando para ligar luzes
-    if (input.includes('ligar') && (input.includes('luz') || input.includes('poste'))) {
-      try {
-        await onToggleLight('on');
-        return 'Luzes ligadas com sucesso! ✅';
-      } catch (error) {
-        return 'Erro ao ligar as luzes. Verifique a conexão com o sistema.';
-      }
-    }
-    
-    // Comando para desligar luzes
-    if (input.includes('desligar') && (input.includes('luz') || input.includes('poste'))) {
-      try {
-        await onToggleLight('off');
-        return 'Luzes desligadas com sucesso! ✅';
-      } catch (error) {
-        return 'Erro ao desligar as luzes. Verifique a conexão com o sistema.';
-      }
-    }
-    
-    // Comando para programar tarefa
-    const timeMatch = input.match(/(\d+)\s*(minuto|segundo)/g);
-    if ((input.includes('programar') || input.includes('agendar')) && timeMatch) {
-      let minutes = 0;
-      let seconds = 0;
-      
-      timeMatch.forEach(match => {
-        const num = parseInt(match.match(/\d+/)?.[0] || '0');
-        if (match.includes('minuto')) minutes = num;
-        if (match.includes('segundo')) seconds = num;
-      });
-      
-      const action = input.includes('ligar') ? 'on' : 'off';
-      onScheduleTask(minutes, seconds, action);
-      
-      return `Tarefa programada: ${action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${minutes}m${seconds}s ⏰`;
-    }
-    
-    // Comando para análise de dados
-    if (input.includes('analis') || input.includes('dados') || input.includes('sistema') || input.includes('consumo') || input.includes('falha')) {
-      const systemData = await analyzeSystemData();
-      
-      if (!systemData) {
-        return 'Não foi possível acessar os dados do sistema no momento. Verifique a conexão.';
-      }
-      
-      let analysis = '📊 **Análise do Sistema:**\n\n';
-      
-      if (systemData.circuito) {
-        analysis += `🔌 **Circuito:**\n`;
-        analysis += `• Tensão: ${systemData.circuito.tensao || 'N/A'}V\n`;
-        analysis += `• Corrente: ${systemData.circuito.corrente || 'N/A'}A\n`;
-        analysis += `• Potência: ${systemData.circuito.potencia || 'N/A'}W\n`;
-        analysis += `• Status: ${systemData.circuito.status === 'on' ? '✅ Ativo' : '❌ Inativo'}\n\n`;
-      }
-      
-      if (systemData.led) {
-        analysis += `💡 **Iluminação:**\n`;
-        analysis += `• Status: ${systemData.led.status === 'on' ? '✅ Ligado' : '❌ Desligado'}\n`;
-        analysis += `• Tipo: ${systemData.led.type || 'N/A'}\n\n`;
-      }
-      
-      // Análise de falhas
-      if (systemData.circuito?.info && systemData.circuito.info.includes('Falha')) {
-        analysis += `⚠️ **Alertas Detectados:**\n`;
-        analysis += `• ${systemData.circuito.info}\n\n`;
-        analysis += `**Recomendações:**\n`;
-        analysis += `• Verificar conexões dos postes afetados\n`;
-        analysis += `• Inspecionar componentes elétricos\n`;
-        analysis += `• Considerar manutenção preventiva\n`;
-      } else {
-        analysis += `✅ **Sistema Saudável** - Nenhuma falha detectada\n`;
-      }
-      
-      return analysis;
-    }
-    
-    // Resposta padrão da IA
-    return generateAIResponse(userInput);
-  };
-
-  const generateAIResponse = (userInput: string): string => {
-    const responses = [
-      'Como engenheira elétrica, posso ajudá-lo com análises técnicas do sistema. Use comandos como "analisar sistema", "ligar luzes" ou "programar tarefa".',
-      'Baseado na minha experiência em IoT e automação, recomendo verificar os dados do sistema regularmente. Posso fazer isso para você!',
-      'Gildo Komba me treinou para ser precisa e objetiva. Que tipo de análise ou controle você precisa?',
-      'Para otimizar o sistema de iluminação, posso analisar padrões de consumo e sugerir melhorias. Quer que eu verifique os dados atuais?'
-    ];
-    
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -181,26 +74,86 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setSelectedFiles([]);
     setIsLoading(true);
 
     try {
-      const response = await processCommand(input);
-      
+      // Detectar tipo de comando
+      const command = detectCommand(currentInput);
+      let systemData: SystemData | null = null;
+      let actionResult = '';
+
+      // Executar ações específicas
+      switch (command.type) {
+        case 'toggle_lights':
+          try {
+            await onToggleLight(command.action!);
+            actionResult = `✅ Luzes ${command.action === 'on' ? 'ligadas' : 'desligadas'} com sucesso!`;
+          } catch (error) {
+            actionResult = `❌ Erro ao ${command.action === 'on' ? 'ligar' : 'desligar'} as luzes.`;
+          }
+          break;
+
+        case 'schedule_task':
+          onScheduleTask(command.minutes!, command.seconds!, command.action!);
+          actionResult = `⏰ Tarefa programada: ${command.action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${command.minutes}m${command.seconds}s`;
+          break;
+
+        case 'analyze_system':
+          systemData = await analyzeSystemData();
+          break;
+      }
+
+      // Criar mensagem de resposta com streaming
+      const assistantMessageId = (Date.now() + 1).toString();
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: assistantMessageId,
         role: 'assistant',
-        content: response,
-        timestamp: new Date()
+        content: actionResult || '',
+        timestamp: new Date(),
+        isStreaming: !actionResult
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Se não há ação específica, usar IA para resposta
+      if (!actionResult) {
+        let fullResponse = '';
+        
+        await generateAIResponse(
+          currentInput,
+          systemData,
+          (chunk: string) => {
+            fullResponse += chunk;
+            setMessages(prev => 
+              prev.map(msg => 
+                msg.id === assistantMessageId 
+                  ? { ...msg, content: fullResponse, isStreaming: true }
+                  : msg
+              )
+            );
+          }
+        );
+
+        // Finalizar streaming
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, isStreaming: false }
+              : msg
+          )
+        );
+      }
+
     } catch (error) {
+      console.error('Erro ao processar mensagem:', error);
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua solicitação. Tente novamente.',
+        content: 'Desculpe, ocorreu um erro ao processar sua solicitação. Verifique sua conexão e tente novamente.',
         timestamp: new Date()
       };
 
@@ -288,6 +241,13 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {message.isStreaming && (
+                <div className="flex items-center gap-1 mt-2">
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse"></div>
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              )}
               <p className={`text-xs mt-2 ${
                 message.role === 'user' ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
               }`}>
