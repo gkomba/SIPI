@@ -73,7 +73,7 @@ INSTRUÇÕES TÉCNICAS:
 Responda sempre em português e seja útil e eficiente.`
 
     const result = await streamText({
-      model: google('gemini-1.5-flash', { apiKey }),
+      model: google('gemini-1.5-flash'),
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages
