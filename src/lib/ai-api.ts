@@ -162,5 +162,3 @@ export function detectCommand(input: string): {
 
   return { type: 'general' };
 }
-
-export { generateAIResponse, getSystemData, detectCommand }
