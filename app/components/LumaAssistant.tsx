@@ -40,6 +40,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
   const [apiKeyError, setApiKeyError] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const streamingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -128,6 +129,55 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     return { type: 'general' }
   }
 
+  // Função para simular streaming de texto caractere por caractere
+  const simulateTextStreaming = (text: string, messageId: string, initialContent: string = '') => {
+    let currentIndex = 0
+    let displayedContent = initialContent
+    
+    const streamNextChar = () => {
+      if (currentIndex < text.length) {
+        displayedContent += text[currentIndex]
+        currentIndex++
+        
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, content: displayedContent, isStreaming: true }
+              : msg
+          )
+        )
+        
+        // Velocidade variável baseada no caractere
+        let delay = 30 // Velocidade base
+        const char = text[currentIndex - 1]
+        
+        if (char === '.' || char === '!' || char === '?') {
+          delay = 200 // Pausa mais longa após pontuação
+        } else if (char === ',' || char === ';') {
+          delay = 100 // Pausa média após vírgulas
+        } else if (char === ' ') {
+          delay = 50 // Pausa pequena após espaços
+        } else if (char === '\n') {
+          delay = 150 // Pausa para quebras de linha
+        }
+        
+        streamingTimeoutRef.current = setTimeout(streamNextChar, delay)
+      } else {
+        // Finalizar streaming
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, content: displayedContent, isStreaming: false }
+              : msg
+          )
+        )
+        setIsLoading(false)
+      }
+    }
+    
+    streamNextChar()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -136,6 +186,11 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     if (!apiKey) {
       setShowApiKeyInput(true)
       return
+    }
+
+    // Limpar timeout anterior se existir
+    if (streamingTimeoutRef.current) {
+      clearTimeout(streamingTimeoutRef.current)
     }
 
     const userMessage: Message = {
@@ -161,15 +216,15 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         case 'toggle_lights':
           try {
             await onToggleLight(command.action!)
-            actionResult = `✅ Luzes ${command.action === 'on' ? 'ligadas' : 'desligadas'} com sucesso!`
+            actionResult = `✅ Luzes ${command.action === 'on' ? 'ligadas' : 'desligadas'} com sucesso!\n\n`
           } catch (error) {
-            actionResult = `❌ Erro ao ${command.action === 'on' ? 'ligar' : 'desligar'} as luzes.`
+            actionResult = `❌ Erro ao ${command.action === 'on' ? 'ligar' : 'desligar'} as luzes.\n\n`
           }
           break
 
         case 'schedule_task':
           onScheduleTask(command.minutes!, command.seconds!, command.action!)
-          actionResult = `⏰ Tarefa programada: ${command.action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${command.minutes}m${command.seconds}s`
+          actionResult = `⏰ Tarefa programada: ${command.action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${command.minutes}m${command.seconds}s\n\n`
           break
       }
 
@@ -191,14 +246,14 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
-        content: actionResult || '',
+        content: actionResult,
         timestamp: new Date(),
         isStreaming: true
       }
 
       setMessages(prev => [...prev, assistantMessage])
 
-      // Gerar resposta da IA usando streaming
+      // Gerar resposta da IA
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -221,7 +276,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
-      let fullResponse = actionResult ? actionResult + '\n\n' : ''
+      let fullAiResponse = ''
 
       try {
         while (true) {
@@ -239,38 +294,36 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
                 const jsonStr = line.substring(2) // Remove '0:' prefix
                 const content = JSON.parse(jsonStr)
                 if (typeof content === 'string') {
-                  fullResponse += content
+                  fullAiResponse += content
                 }
               } catch (parseError) {
                 // If it's not valid JSON, treat as plain text
                 const content = line.substring(2)
                 if (content && !content.startsWith('"') && !content.includes('finishReason')) {
-                  fullResponse += content
+                  fullAiResponse += content
                 }
               }
             }
           }
-
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === assistantMessageId 
-                ? { ...msg, content: fullResponse, isStreaming: true }
-                : msg
-            )
-          )
         }
       } finally {
         reader.releaseLock()
       }
 
-      // Finalizar streaming
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === assistantMessageId 
-            ? { ...msg, content: fullResponse, isStreaming: false }
-            : msg
+      // Iniciar streaming visual do texto completo
+      if (fullAiResponse.trim()) {
+        simulateTextStreaming(fullAiResponse, assistantMessageId, actionResult)
+      } else {
+        // Se não há resposta da IA, finalizar com apenas o resultado da ação
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: actionResult || 'Comando executado com sucesso!', isStreaming: false }
+              : msg
+          )
         )
-      )
+        setIsLoading(false)
+      }
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error)
@@ -283,10 +336,18 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       }
 
       setMessages(prev => [...prev, errorMessage])
-    } finally {
       setIsLoading(false)
     }
   }
+
+  // Limpar timeout quando componente for desmontado
+  useEffect(() => {
+    return () => {
+      if (streamingTimeoutRef.current) {
+        clearTimeout(streamingTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const quickActions = [
     {
