@@ -38,7 +38,7 @@ export async function getSystemData(): Promise<SystemData | null> {
   }
 }
 
-// ✅ FUNÇÃO CORRIGIDA: Agora usa fetch para endpoint API que retorna stream real
+// ✅ IMPLEMENTAÇÃO CORRIGIDA PARA VITE: Usar AI SDK diretamente no frontend
 export async function generateAIResponse(
   message: string,
   systemData: SystemData | null,
@@ -46,55 +46,54 @@ export async function generateAIResponse(
   onStream: (chunk: string) => void
 ): Promise<void> {
   try {
-    // ✅ Fazer requisição para endpoint API que usa result.toAIStreamResponse()
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}` // Passar API key no header
-      },
-      body: JSON.stringify({
-        message,
-        systemData
-      })
+    if (!apiKey || !apiKey.startsWith('AIza')) {
+      throw new Error('API key inválida');
+    }
+
+    const systemContext = systemData ? `
+📡 **Dados do Sistema**:
+- Circuito: ${JSON.stringify(systemData.circuito, null, 2)}
+- LED: ${JSON.stringify(systemData.led, null, 2)}
+` : '⚠️ Dados do sistema não disponíveis no momento.';
+
+    const systemPrompt = `Você é Luma, uma IA especializada em sistemas de iluminação pública inteligente, criada por Gildo Komba.
+
+🧠 PERSONALIDADE:
+- Profissional e amigável
+- Especialista em engenharia elétrica, IoT e IA aplicada
+- Direta, mas criativa quando necessário
+
+🎯 CAPACIDADES:
+- Diagnosticar e interpretar falhas no sistema de iluminação
+- Sugerir otimizações de energia
+- Controlar luzes e agendar tarefas
+- Explicar conceitos técnicos com clareza
+
+📍 CONTEXTO:
+${systemContext}
+
+🎓 INSTRUÇÕES:
+- Responda sempre em português
+- Use emojis relevantes para clareza
+- Seja detalhada em análises técnicas`;
+
+    // ✅ Usar AI SDK diretamente no frontend (funciona no Vite)
+    const result = await streamText({
+      model: google('gemini-1.5-flash', { apiKey }),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ],
+      temperature: 0.7,
+      maxTokens: 1024
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+    // ✅ Processar stream diretamente
+    for await (const chunk of result.textStream) {
+      onStream(chunk);
     }
 
-    // ✅ Processar stream real do endpoint
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-
-    if (!reader) {
-      throw new Error('No reader available');
-    }
-
-    while (true) {
-      const { done, value } = await reader.read();
-      
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      
-      // Processar chunks do AI SDK (formato específico)
-      const lines = chunk.split('\n');
-      for (const line of lines) {
-        if (line.startsWith('0:')) {
-          try {
-            const data = JSON.parse(line.slice(2));
-            if (data.type === 'text-delta' && data.textDelta) {
-              onStream(data.textDelta);
-            }
-          } catch (e) {
-            // Ignorar linhas malformadas
-          }
-        }
-      }
-    }
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erro na IA real:', error);
 
     // Fallback para resposta simulada
@@ -118,12 +117,43 @@ function getFallbackResponse(message: string, systemData: SystemData | null): st
   if (lower.includes('analis') || lower.includes('sistema')) {
     if (systemData?.circuito) {
       const { saude, status, corrente, potencia, tensao } = systemData.circuito;
-      return `📊 Análise Rápida:\n• Saúde: ${saude}\n• Status: ${status}\n• Corrente: ${corrente}A\n• Potência: ${potencia}W\n• Tensão: ${tensao}V`;
+      return `📊 **Análise do Sistema:**
+
+🔋 **Status Geral:** ${saude === 'OK' ? '✅ Saudável' : '⚠️ Atenção necessária'}
+⚡ **Estado:** ${status === 'on' ? '🟢 Ativo' : '🔴 Inativo'}
+
+📈 **Parâmetros Elétricos:**
+• Corrente: ${corrente}A
+• Potência: ${potencia}W  
+• Tensão: ${tensao}V
+
+💡 **Recomendações:**
+${saude === 'OK' ? 
+  '• Sistema funcionando dentro dos parâmetros normais\n• Monitoramento contínuo ativo' : 
+  '• Verificar possíveis falhas nos postes\n• Investigar anomalias detectadas'
+}`;
     }
-    return '🔍 Analisando... mas não consegui acessar os dados do sistema agora.';
+    return '🔍 Analisando... mas não consegui acessar os dados do sistema agora. Verifique a conexão com o Firebase.';
   }
 
-  return 'Sou a Luma, criada por Gildo Komba para apoiar na gestão de iluminação inteligente. Posso fazer análises técnicas, sugerir melhorias e interagir com o sistema. O que deseja saber ou controlar?';
+  if (lower.includes('ligar') || lower.includes('desligar')) {
+    return '💡 Comando de controle detectado! Use os botões de controle manual ou me diga exatamente o que deseja fazer com as luzes.';
+  }
+
+  if (lower.includes('programar') || lower.includes('agendar')) {
+    return '⏰ Para programar tarefas, especifique:\n• Ação: ligar ou desligar\n• Tempo: em minutos e/ou segundos\n\nExemplo: "Programar para ligar as luzes em 5 minutos"';
+  }
+
+  return `🤖 Sou a Luma, criada por Gildo Komba para apoiar na gestão de iluminação inteligente. 
+
+🎯 **Posso ajudar com:**
+• Análise técnica do sistema
+• Diagnóstico de falhas
+• Sugestões de otimização
+• Controle de dispositivos
+• Programação de tarefas
+
+💬 **Como posso ajudá-lo hoje?**`;
 }
 
 export function detectCommand(input: string): {
