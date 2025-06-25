@@ -23,7 +23,7 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
       { id: 4, status: 'OK' as const }
     ];
 
-    if (info && info.includes('Falha(s) encontrada(s) na(s) Zona(s)')) {
+    if (info) {
       // Extract zone numbers from the string
       const match = info.match(/Zona\(s\)\s+([\d\s]+)/);
       if (match) {
