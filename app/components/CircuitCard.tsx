@@ -19,10 +19,12 @@ interface PosteStatus {
 export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnline }) => {
   const parsePostesStatus = (info: string): PosteStatus[] => {
     const postes = [
-      { id: 1, status: 'OK' as const },
-      { id: 2, status: 'OK' as const },
-      { id: 3, status: 'OK' as const },
-      { id: 4, status: 'OK' as const }
+      const postes: PosteStatus[] = [
+        { id: 1, status: 'OK' },
+        { id: 2, status: 'OK' },
+        { id: 3, status: 'OK' },
+        { id: 4, status: 'OK' }
+      ]
     ]
 
     if (info) {
