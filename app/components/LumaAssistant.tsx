@@ -2,7 +2,14 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Bot, Send, Upload, X, Lightbulb, Timer, Database, Zap, Key, AlertCircle } from 'lucide-react'
-import { useChat } from 'ai/react'
+
+interface Message {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  isStreaming?: boolean
+}
 
 interface LumaAssistantProps {
   isOpen: boolean
@@ -17,37 +24,22 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
   onToggleLight, 
   onScheduleTask 
 }) => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente. Criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá-lo?',
+      timestamp: new Date()
+    }
+  ])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [apiKey, setApiKey] = useState('')
   const [showApiKeyInput, setShowApiKeyInput] = useState(false)
   const [apiKeyError, setApiKeyError] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    setInput
-  } = useChat({
-    api: '/api/chat',
-    initialMessages: [
-      {
-        id: '1',
-        role: 'assistant',
-        content: 'Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente. Criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá-lo?'
-      }
-    ],
-    body: {
-      apiKey,
-      systemData: null
-    },
-    onError: (error) => {
-      console.error('Chat error:', error)
-    }
-  })
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -136,7 +128,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     return { type: 'general' }
   }
 
-  const enhancedHandleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!input.trim() && selectedFiles.length === 0) return
@@ -146,8 +138,19 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       return
     }
 
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      timestamp: new Date()
+    }
+
+    setMessages(prev => [...prev, userMessage])
     const currentInput = input
-    
+    setInput('')
+    setSelectedFiles([])
+    setIsLoading(true)
+
     try {
       // Detectar tipo de comando
       const command = detectCommand(currentInput)
@@ -158,15 +161,15 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         case 'toggle_lights':
           try {
             await onToggleLight(command.action!)
-            actionResult = `✅ Luzes ${command.action === 'on' ? 'ligadas' : 'desligadas'} com sucesso!\n\n`
+            actionResult = `✅ Luzes ${command.action === 'on' ? 'ligadas' : 'desligadas'} com sucesso!`
           } catch (error) {
-            actionResult = `❌ Erro ao ${command.action === 'on' ? 'ligar' : 'desligar'} as luzes.\n\n`
+            actionResult = `❌ Erro ao ${command.action === 'on' ? 'ligar' : 'desligar'} as luzes.`
           }
           break
 
         case 'schedule_task':
           onScheduleTask(command.minutes!, command.seconds!, command.action!)
-          actionResult = `⏰ Tarefa programada: ${command.action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${command.minutes}m${command.seconds}s\n\n`
+          actionResult = `⏰ Tarefa programada: ${command.action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${command.minutes}m${command.seconds}s`
           break
       }
 
@@ -183,23 +186,93 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         }
       }
 
-      // Se há resultado de ação, adicionar ao input
-      if (actionResult) {
-        setInput(actionResult + currentInput)
+      // Criar mensagem de resposta da IA
+      const assistantMessageId = (Date.now() + 1).toString()
+      const assistantMessage: Message = {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: actionResult || '',
+        timestamp: new Date(),
+        isStreaming: true
       }
 
-      // Usar o handleSubmit nativo do useChat
-      handleSubmit(e, {
-        body: {
-          apiKey,
-          systemData
-        }
+      setMessages(prev => [...prev, assistantMessage])
+
+      // Fazer chamada para a API
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: currentInput }],
+          systemData,
+          apiKey
+        })
       })
 
-      setSelectedFiles([])
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let fullResponse = actionResult ? actionResult + '\n\n' : ''
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+          
+          // Parse streaming chunks from AI SDK
+          const lines = chunk.split('\n')
+          for (const line of lines) {
+            if (line.startsWith('0:')) {
+              try {
+                const content = JSON.parse(line.slice(2))
+                if (typeof content === 'string') {
+                  fullResponse += content
+                  
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === assistantMessageId 
+                        ? { ...msg, content: fullResponse, isStreaming: true }
+                        : msg
+                    )
+                  )
+                }
+              } catch (e) {
+                // Ignore parsing errors for non-JSON lines
+              }
+            }
+          }
+        }
+      }
+
+      // Finalizar streaming
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: fullResponse, isStreaming: false }
+            : msg
+        )
+      )
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error)
+      
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Desculpe, ocorreu um erro ao processar sua solicitação. Verifique sua conexão e API key, e tente novamente.',
+        timestamp: new Date()
+      }
+
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -353,10 +426,17 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
               <div className="text-sm whitespace-pre-wrap leading-relaxed">
                 {message.content}
               </div>
+              {message.isStreaming && (
+                <div className="flex items-center gap-1 mt-2">
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse"></div>
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              )}
               <p className={`text-xs mt-2 ${
                 message.role === 'user' ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
               }`}>
-                {formatTime(new Date(message.createdAt || Date.now()))}
+                {formatTime(message.timestamp)}
               </p>
             </div>
           </div>
@@ -399,19 +479,19 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       )}
 
       {/* Input */}
-      <form onSubmit={enhancedHandleSubmit} className="p-4 border-t border-gray-200 dark:border-gray-700">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-end gap-2">
           <div className="flex-1">
             <textarea
               value={input}
-              onChange={handleInputChange}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="Digite sua pergunta ou comando..."
               className="w-full resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               rows={2}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
-                  enhancedHandleSubmit(e)
+                  handleSubmit(e)
                 }
               }}
             />
