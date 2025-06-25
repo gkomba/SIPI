@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useFirebaseData } from '../hooks/useFirebaseData';
 import { useTheme } from '../hooks/useTheme';
@@ -11,6 +11,12 @@ import { LumaAssistant } from './LumaAssistant';
 export const Dashboard: React.FC = () => {
   const { data, loading, error, isOnline, updateLedStatus, refetch } = useFirebaseData();
   const { isDark, toggleTheme } = useTheme();
+  const [isLumaOpen, setIsLumaOpen] = useState(false);
+
+  const handleScheduleTask = (minutes: number, seconds: number, action: 'on' | 'off') => {
+    // This would integrate with your existing timer functionality
+    console.log(`Scheduling task: ${action} in ${minutes}m ${seconds}s`);
+  };
 
   if (error) {
     return (
@@ -29,16 +35,22 @@ export const Dashboard: React.FC = () => {
             Tentar Novamente
           </button>
         </div>
-        <LumaAssistant />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <Header isDark={isDark} onToggleTheme={toggleTheme} />
+      <Header 
+        isDark={isDark} 
+        onToggleTheme={toggleTheme} 
+        onToggleLuma={() => setIsLumaOpen(!isLumaOpen)}
+        isLumaOpen={isLumaOpen}
+      />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className={`container mx-auto px-4 py-8 transition-all duration-300 ${
+        isLumaOpen ? 'mr-96' : ''
+      }`}>
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -80,7 +92,12 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <LumaAssistant />
+      <LumaAssistant 
+        isOpen={isLumaOpen}
+        onClose={() => setIsLumaOpen(false)}
+        onToggleLight={updateLedStatus}
+        onScheduleTask={handleScheduleTask}
+      />
     </div>
   );
 };

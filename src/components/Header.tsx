@@ -1,13 +1,15 @@
 import React from 'react';
-import { Moon, Sun, Clock } from 'lucide-react';
+import { Moon, Sun, Clock, Bot } from 'lucide-react';
 import { useCurrentTime } from '../hooks/useCurrentTime';
 
 interface HeaderProps {
   isDark: boolean;
   onToggleTheme: () => void;
+  onToggleLuma: () => void;
+  isLumaOpen: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme }) => {
+export const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, onToggleLuma, isLumaOpen }) => {
   const currentTime = useCurrentTime();
 
   const formatTime = (date: Date) => {
@@ -38,17 +40,31 @@ export const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme }) => {
             </div>
           </div>
           
-          <button
-            onClick={onToggleTheme}
-            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            aria-label="Toggle theme"
-          >
-            {isDark ? (
-              <Sun className="w-5 h-5 text-yellow-500" />
-            ) : (
-              <Moon className="w-5 h-5 text-gray-600" />
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onToggleLuma}
+              className={`p-2 rounded-lg transition-colors ${
+                isLumaOpen 
+                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
+                  : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
+              }`}
+              aria-label="Toggle Luma Assistant"
+            >
+              <Bot className="w-5 h-5" />
+            </button>
+            
+            <button
+              onClick={onToggleTheme}
+              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {isDark ? (
+                <Sun className="w-5 h-5 text-yellow-500" />
+              ) : (
+                <Moon className="w-5 h-5 text-gray-600" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
