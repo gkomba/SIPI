@@ -75,19 +75,15 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
         </div>
         <div className="flex gap-2">
           <StatusBadge status={isOnline ? 'online' : 'offline'} size="sm" />
-          {data && <StatusBadge status={data.saude} />}
+          <StatusBadge status={systemStatus} />
         </div>
       </div>
       
       {data ? (
         <div className="space-y-6">
-          {/* Status Geral do Sistema */}
-          <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Status Geral do Sistema</h3>
-              <StatusBadge status={systemStatus} size="sm" />
-            </div>
-            <p className="text-gray-900 dark:text-gray-100 text-sm">{data.info}</p>
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Status do Sistema</h3>
+            <p className="text-gray-900 dark:text-gray-100">{data.info}</p>
           </div>
 
           {/* Status Individual dos Postes */}
