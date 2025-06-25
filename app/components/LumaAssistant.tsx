@@ -28,7 +28,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     {
       id: '1',
       role: 'assistant',
-      content: 'Olá! Eu sou a Luma, sua assistente de IA especializada em sistemas de iluminação inteligente. Fui criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e sugestões de otimização.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n\nComo posso ajudá-lo hoje?',
+      content: 'Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente. Criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá-lo?',
       timestamp: new Date()
     }
   ])
@@ -129,14 +129,31 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     return { type: 'general' }
   }
 
+  // Função para limpar formatação com asteriscos e melhorar legibilidade
+  const cleanFormatting = (text: string): string => {
+    return text
+      // Remove asteriscos de formatação
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      // Limpa formatação markdown desnecessária
+      .replace(/#{1,6}\s/g, '')
+      // Melhora espaçamento
+      .replace(/\n{3,}/g, '\n\n')
+      // Remove espaços extras
+      .replace(/[ \t]+/g, ' ')
+      .trim()
+  }
+
   // Função para simular streaming de texto caractere por caractere
   const simulateTextStreaming = (text: string, messageId: string, initialContent: string = '') => {
+    // Limpar formatação antes do streaming
+    const cleanText = cleanFormatting(text)
     let currentIndex = 0
     let displayedContent = initialContent
     
     const streamNextChar = () => {
-      if (currentIndex < text.length) {
-        displayedContent += text[currentIndex]
+      if (currentIndex < cleanText.length) {
+        displayedContent += cleanText[currentIndex]
         currentIndex++
         
         setMessages(prev => 
@@ -148,17 +165,17 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         )
         
         // Velocidade variável baseada no caractere
-        let delay = 30 // Velocidade base
-        const char = text[currentIndex - 1]
+        let delay = 25 // Velocidade base mais rápida
+        const char = cleanText[currentIndex - 1]
         
         if (char === '.' || char === '!' || char === '?') {
-          delay = 200 // Pausa mais longa após pontuação
+          delay = 150 // Pausa após pontuação
         } else if (char === ',' || char === ';') {
-          delay = 100 // Pausa média após vírgulas
+          delay = 80 // Pausa média após vírgulas
         } else if (char === ' ') {
-          delay = 50 // Pausa pequena após espaços
+          delay = 35 // Pausa pequena após espaços
         } else if (char === '\n') {
-          delay = 150 // Pausa para quebras de linha
+          delay = 100 // Pausa para quebras de linha
         }
         
         streamingTimeoutRef.current = setTimeout(streamNextChar, delay)
@@ -496,7 +513,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
               {message.isStreaming && (
                 <div className="flex items-center gap-1 mt-2">
                   <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse"></div>
