@@ -153,7 +153,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Gerar resposta da IA usando Google Gemini
+      // ✅ Gerar resposta da IA usando streaming real
       let fullResponse = actionResult ? actionResult + '\n\n' : '';
       
       await generateAIResponse(

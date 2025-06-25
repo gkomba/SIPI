@@ -38,6 +38,7 @@ export async function getSystemData(): Promise<SystemData | null> {
   }
 }
 
+// ✅ FUNÇÃO CORRIGIDA: Agora usa fetch para endpoint API que retorna stream real
 export async function generateAIResponse(
   message: string,
   systemData: SystemData | null,
@@ -45,57 +46,64 @@ export async function generateAIResponse(
   onStream: (chunk: string) => void
 ): Promise<void> {
   try {
-    const systemContext = systemData ? `
-📡 **Dados do Sistema**:
-- Circuito: ${JSON.stringify(systemData.circuito, null, 2)}
-- LED: ${JSON.stringify(systemData.led, null, 2)}
-` : '⚠️ Dados do sistema não disponíveis no momento.';
-
-    const systemPrompt = `Você é Luma, uma IA especializada em sistemas de iluminação pública inteligente, criada por Gildo Komba.
-
-🧠 PERSONALIDADE:
-- Profissional e amigável
-- Especialista em engenharia elétrica, IoT e IA aplicada
-- Direta, mas criativa quando necessário
-
-🎯 CAPACIDADES:
-- Diagnosticar e interpretar falhas no sistema de iluminação
-- Sugerir otimizações de energia
-- Controlar luzes e agendar tarefas
-- Explicar conceitos técnicos com clareza
-
-📍 CONTEXTO:
-${systemContext}
-
-🎓 INSTRUÇÕES:
-- Responda sempre em português
-- Use emojis relevantes para clareza
-- Seja detalhada em análises técnicas`;
-
-    const result = await streamText({
-      model: google('gemini-1.5-flash', { apiKey }),
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: message }
-      ],
-      temperature: 0.7,
-      maxTokens: 1024
+    // ✅ Fazer requisição para endpoint API que usa result.toAIStreamResponse()
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}` // Passar API key no header
+      },
+      body: JSON.stringify({
+        message,
+        systemData
+      })
     });
 
-    for await (const chunk of result.textStream) {
-      console.log('[IA STREAMING]', chunk);
-      onStream(chunk);
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
+
+    // ✅ Processar stream real do endpoint
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error('No reader available');
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      
+      // Processar chunks do AI SDK (formato específico)
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('0:')) {
+          try {
+            const data = JSON.parse(line.slice(2));
+            if (data.type === 'text-delta' && data.textDelta) {
+              onStream(data.textDelta);
+            }
+          } catch (e) {
+            // Ignorar linhas malformadas
+          }
+        }
+      }
     }
 
   } catch (error) {
     console.error('❌ Erro na IA real:', error);
 
+    // Fallback para resposta simulada
     const fallbackResponse = getFallbackResponse(message, systemData);
     const words = fallbackResponse.split(' ');
     for (let i = 0; i < words.length; i++) {
       const chunk = (i === 0 ? '' : ' ') + words[i];
       onStream(chunk);
-      await new Promise(resolve => setTimeout(resolve, 40)); // simula streaming
+      await new Promise(resolve => setTimeout(resolve, 40));
     }
   }
 }
