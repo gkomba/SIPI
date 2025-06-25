@@ -1,8 +1,11 @@
 export interface CircuitData {
-  info: string
-  saude: 'OK' | 'ALERT' | 'WARNING'
-  status: 'on' | 'off'
-  time: string
+  corrente: number;
+  potencia: number;
+  tensao: number;
+  time: string;
+  status?: 'on' | 'off';
+  info?: string;
+  saude?: 'OK' | 'ALERT' | 'WARNING';
 }
 
 export interface PosteData {
