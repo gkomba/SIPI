@@ -28,9 +28,9 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     messages,
     input,
     handleInputChange,
-    handleSubmit: originalHandleSubmit,
+    handleSubmit,
     isLoading,
-    setMessages
+    setInput
   } = useChat({
     api: '/api/chat',
     initialMessages: [
@@ -42,7 +42,10 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     ],
     body: {
       apiKey,
-      systemData: null // Will be populated when needed
+      systemData: null
+    },
+    onError: (error) => {
+      console.error('Chat error:', error)
     }
   })
 
@@ -133,7 +136,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     return { type: 'general' }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const enhancedHandleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!input.trim() && selectedFiles.length === 0) return
@@ -181,14 +184,15 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       }
 
       // Se há resultado de ação, adicionar ao input
-      const enhancedInput = actionResult ? `${actionResult}${currentInput}` : currentInput
+      if (actionResult) {
+        setInput(actionResult + currentInput)
+      }
 
-      // Usar o handleSubmit nativo do useChat com dados adicionais
-      originalHandleSubmit(e, {
+      // Usar o handleSubmit nativo do useChat
+      handleSubmit(e, {
         body: {
           apiKey,
-          systemData,
-          message: enhancedInput
+          systemData
         }
       })
 
@@ -203,22 +207,22 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     {
       icon: Lightbulb,
       label: 'Ligar Luzes',
-      action: () => handleInputChange({ target: { value: 'Ligar as luzes dos postes' } } as any)
+      action: () => setInput('Ligar as luzes dos postes')
     },
     {
       icon: Zap,
       label: 'Desligar Luzes',
-      action: () => handleInputChange({ target: { value: 'Desligar as luzes dos postes' } } as any)
+      action: () => setInput('Desligar as luzes dos postes')
     },
     {
       icon: Database,
       label: 'Analisar Sistema',
-      action: () => handleInputChange({ target: { value: 'Analisar dados do sistema' } } as any)
+      action: () => setInput('Analisar dados do sistema')
     },
     {
       icon: Timer,
       label: 'Programar Tarefa',
-      action: () => handleInputChange({ target: { value: 'Programar tarefa para ligar luzes em 5 minutos' } } as any)
+      action: () => setInput('Programar tarefa para ligar luzes em 5 minutos')
     }
   ]
 
@@ -346,7 +350,9 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                {message.content}
+              </div>
               <p className={`text-xs mt-2 ${
                 message.role === 'user' ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
               }`}>
@@ -393,7 +399,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       )}
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 dark:border-gray-700">
+      <form onSubmit={enhancedHandleSubmit} className="p-4 border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-end gap-2">
           <div className="flex-1">
             <textarea
@@ -405,7 +411,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
-                  handleSubmit(e)
+                  enhancedHandleSubmit(e)
                 }
               }}
             />
