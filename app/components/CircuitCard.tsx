@@ -13,7 +13,7 @@ interface CircuitCardProps {
 
 interface PosteStatus {
   id: number
-  status: 'OK' | 'ALERT'
+  status: 'OK' | 'ALERT' | 'WARNING' | 'OFFLINE'
 }
 
 export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnline }) => {
