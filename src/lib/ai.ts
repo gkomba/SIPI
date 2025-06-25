@@ -113,7 +113,19 @@ export async function generateAIResponse(
     }
   } catch (error) {
     console.error('Erro na API do Google:', error);
-    return 'Desculpe, estou com dificuldades para processar sua solicitação no momento. Verifique a conexão e tente novamente.';
+    
+    // Fallback responses para diferentes tipos de mensagem
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('olá') || lowerMessage.includes('oi') || lowerMessage.includes('ola')) {
+      return 'Olá! 👋 Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente. Como posso ajudá-lo hoje? Posso analisar dados do sistema, controlar as luzes ou programar tarefas.';
+    }
+    
+    if (lowerMessage.includes('bom dia') || lowerMessage.includes('boa tarde') || lowerMessage.includes('boa noite')) {
+      return 'Olá! Espero que esteja tendo um ótimo dia! 😊 Sou a Luma e estou aqui para ajudá-lo com o sistema de iluminação. O que precisa hoje?';
+    }
+    
+    return 'Desculpe, estou com dificuldades para me conectar ao servidor no momento. Mas posso ajudá-lo com comandos básicos do sistema de iluminação. Tente novamente em alguns instantes.';
   }
 }
 

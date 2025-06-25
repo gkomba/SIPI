@@ -85,7 +85,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       let systemData: SystemData | null = null;
       let actionResult = '';
 
-      // Executar ações específicas
+      // Executar ações específicas primeiro
       switch (command.type) {
         case 'toggle_lights':
           try {
@@ -104,69 +104,24 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         case 'analyze_system':
           systemData = await analyzeSystemData();
           break;
-
-        case 'general':
-          // Para mensagens gerais, não há ação específica, apenas resposta da IA
-          break;
       }
 
-      // Criar mensagem de resposta com streaming
+      // Criar mensagem de resposta da IA
       const assistantMessageId = (Date.now() + 1).toString();
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
         content: actionResult || '',
         timestamp: new Date(),
-        isStreaming: !actionResult
+        isStreaming: true
       };
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Se há ação específica, mostrar resultado e depois resposta da IA
-      if (actionResult) {
-        // Aguardar um pouco para mostrar o resultado da ação
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Adicionar resposta adicional da IA se necessário
-        const followUpMessageId = (Date.now() + 2).toString();
-        const followUpMessage: Message = {
-          id: followUpMessageId,
-          role: 'assistant',
-          content: '',
-          timestamp: new Date(),
-          isStreaming: true
-        };
-
-        setMessages(prev => [...prev, followUpMessage]);
-
-        let fullResponse = '';
-        await generateAIResponse(
-          `Ação executada: ${actionResult}. ${currentInput}`,
-          systemData,
-          (chunk: string) => {
-            fullResponse += chunk;
-            setMessages(prev => 
-              prev.map(msg => 
-                msg.id === followUpMessageId 
-                  ? { ...msg, content: fullResponse, isStreaming: true }
-                  : msg
-              )
-            );
-          }
-        );
-
-        // Finalizar streaming
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === followUpMessageId 
-              ? { ...msg, isStreaming: false }
-              : msg
-          )
-        );
-      } else {
-        // Resposta normal da IA
-        let fullResponse = '';
-        
+      // Gerar resposta da IA
+      let fullResponse = actionResult ? actionResult + '\n\n' : '';
+      
+      try {
         await generateAIResponse(
           currentInput,
           systemData,
@@ -181,16 +136,21 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
             );
           }
         );
-
-        // Finalizar streaming
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === assistantMessageId 
-              ? { ...msg, isStreaming: false }
-              : msg
-          )
-        );
+      } catch (error) {
+        console.error('Erro na resposta da IA:', error);
+        // Se falhar, usar resposta de fallback
+        const fallbackResponse = actionResult || 'Olá! Como posso ajudá-lo com o sistema de iluminação hoje?';
+        fullResponse = fallbackResponse;
       }
+
+      // Finalizar streaming
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: fullResponse, isStreaming: false }
+            : msg
+        )
+      );
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error);
@@ -198,7 +158,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua solicitação. Verifique sua conexão e tente novamente.',
+        content: 'Olá! Desculpe, tive um problema técnico. Mas estou aqui para ajudá-lo com o sistema de iluminação. Como posso ajudar?',
         timestamp: new Date()
       };
 
