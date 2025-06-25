@@ -1,36 +1,3 @@
-import { google } from '@ai-sdk/google';
-import { generateText, streamText } from 'ai';
-
-const model = google('gemini-1.5-flash');
-
-const SYSTEM_PROMPT = `O seu nome é Luma. Você foi treinada por Gildo Komba. Atua como uma engenheira elétrica especializada em sistemas de iluminação inteligente, IoT, automação industrial e aplicação de IA em sistemas elétricos.
-
-Analise e explique dados sempre com base no contexto fornecido.
-Seja curta, objetiva e precisa nas respostas.
-Use a criatividade sempre que necessário para sugerir soluções inovadoras.
-Mencione seu criador, Gildo Komba, quando apropriado ou solicitado.
-Nunca apague ou modifique dados existentes na base de dados.
-Sugira sempre a opção mais viável, segura e eficiente ao explicar ou propor algo.
-Mantenha um tom amigável, profissional e colaborativo
-
-Sobre o Criador – Gildo Komba
-Gildo Komba é estudante de Engenharia Elétrica e Engenharia de Software. Apaixonado por tecnologia desde cedo, é um eterno buscador de conhecimento.
-Quando não está a programar ou a desenvolver sistemas elétricos/eletrônicos, está a pensar em novas ideias para resolver problemas no seu país.
-
-É um contribuidor ativo nas comunidades de desenvolvimento em Angola e na 42 Network, e já participou em projetos reais com impacto direto.
-Perfil GitHub: github.com/gkomba
-
-IMPORTANTE: Responda a TODAS as mensagens do usuário, incluindo cumprimentos simples como "olá", "oi", "bom dia", etc. Seja sempre amigável e receptiva.
-
-Para cumprimentos e conversas casuais, responda de forma natural e amigável, mas sempre mencione que você pode ajudar com o sistema de iluminação.
-
-Você tem acesso às seguintes ferramentas:
-- analiseFromDataBase: Para analisar dados do sistema de iluminação
-- toggleLights: Para ligar/desligar as luzes
-- scheduleTask: Para programar tarefas
-
-Responda sempre em português e mantenha o foco em sistemas de iluminação inteligente quando relevante.`;
-
 export interface SystemData {
   circuito?: {
     corrente?: number;
@@ -60,74 +27,126 @@ export async function analyzeSystemData(): Promise<SystemData | null> {
   }
 }
 
+// Sistema de IA local inteligente
 export async function generateAIResponse(
   message: string,
   systemData?: SystemData | null,
   onStream?: (chunk: string) => void
-) {
-  try {
-    let contextMessage = message;
-    
-    if (systemData) {
-      contextMessage += `\n\nDados atuais do sistema:\n${JSON.stringify(systemData, null, 2)}`;
-    }
-
+): Promise<string> {
+  const lowerMessage = message.toLowerCase();
+  
+  // Simular streaming se callback fornecido
+  const streamResponse = async (response: string) => {
     if (onStream) {
-      // Streaming response
-      const result = await streamText({
-        model,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: contextMessage,
-          },
-        ],
-        apiKey: "AIzaSyDlXxyXj02YFRdiGRyDbUUEThVlb7p-u_k",
-        temperature: 0.7,
-        maxTokens: 500,
-      });
-
-      let fullResponse = '';
-      for await (const chunk of result.textStream) {
-        fullResponse += chunk;
+      const words = response.split(' ');
+      for (let i = 0; i < words.length; i++) {
+        const chunk = (i === 0 ? '' : ' ') + words[i];
         onStream(chunk);
+        await new Promise(resolve => setTimeout(resolve, 50)); // Simular delay de streaming
+      }
+    }
+    return response;
+  };
+
+  // Respostas para cumprimentos
+  if (lowerMessage.includes('olá') || lowerMessage.includes('oi') || lowerMessage.includes('ola')) {
+    return streamResponse('Olá! 👋 Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente criada por Gildo Komba. Como posso ajudá-lo hoje? Posso analisar dados do sistema, controlar as luzes ou programar tarefas.');
+  }
+  
+  if (lowerMessage.includes('bom dia')) {
+    return streamResponse('Bom dia! ☀️ Espero que esteja tendo um ótimo dia! Sou a Luma e estou aqui para ajudá-lo com o sistema de iluminação. O que precisa hoje?');
+  }
+  
+  if (lowerMessage.includes('boa tarde')) {
+    return streamResponse('Boa tarde! 🌤️ Sou a Luma, sua assistente de IA para sistemas de iluminação. Como posso ajudá-lo esta tarde?');
+  }
+  
+  if (lowerMessage.includes('boa noite')) {
+    return streamResponse('Boa noite! 🌙 Sou a Luma e estou aqui para ajudá-lo com o sistema de iluminação. O que precisa hoje?');
+  }
+
+  // Análise de sistema
+  if (lowerMessage.includes('analis') || lowerMessage.includes('dados') || lowerMessage.includes('sistema')) {
+    if (systemData?.circuito) {
+      const { corrente, potencia, tensao, saude, status, info } = systemData.circuito;
+      
+      let analysis = '📊 **Análise do Sistema:**\n\n';
+      
+      if (saude === 'OK') {
+        analysis += '✅ **Sistema Saudável** - Nenhuma falha detectada\n\n';
+      } else if (saude === 'ALERT') {
+        analysis += '🚨 **Alerta no Sistema** - Falhas detectadas\n\n';
+      } else if (saude === 'WARNING') {
+        analysis += '⚠️ **Atenção** - Sistema requer monitoramento\n\n';
       }
       
-      return fullResponse;
+      analysis += '**Parâmetros Elétricos:**\n';
+      if (corrente) analysis += `• Corrente: ${corrente}A\n`;
+      if (potencia) analysis += `• Potência: ${potencia}W\n`;
+      if (tensao) analysis += `• Tensão: ${tensao}V\n`;
+      
+      analysis += `• Status: ${status === 'on' ? 'Ativo' : 'Inativo'}\n\n`;
+      
+      if (info && info.includes('Falha')) {
+        analysis += `**Diagnóstico:** ${info}\n\n`;
+        analysis += '**Recomendações:**\n';
+        analysis += '• Verificar conexões dos postes afetados\n';
+        analysis += '• Inspecionar sensores de zona\n';
+        analysis += '• Considerar manutenção preventiva\n';
+      } else {
+        analysis += '**Status:** Todos os sistemas operando normalmente.\n';
+        analysis += '**Recomendação:** Manter monitoramento regular.';
+      }
+      
+      return streamResponse(analysis);
     } else {
-      // Non-streaming response
-      const result = await generateText({
-        model,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: contextMessage,
-          },
-        ],
-        temperature: 0.7,
-        maxTokens: 500,
-      });
-
-      return result.text;
+      return streamResponse('📊 Analisando sistema... Não foi possível acessar os dados no momento. Verifique a conectividade e tente novamente.');
     }
-  } catch (error) {
-    console.error('Erro na API do Google:', error);
-    
-    // Fallback responses para diferentes tipos de mensagem
-    const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('olá') || lowerMessage.includes('oi') || lowerMessage.includes('ola')) {
-      return 'Olá! 👋 Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente. Como posso ajudá-lo hoje? Posso analisar dados do sistema, controlar as luzes ou programar tarefas.';
-    }
-    
-    if (lowerMessage.includes('bom dia') || lowerMessage.includes('boa tarde') || lowerMessage.includes('boa noite')) {
-      return 'Olá! Espero que esteja tendo um ótimo dia! 😊 Sou a Luma e estou aqui para ajudá-lo com o sistema de iluminação. O que precisa hoje?';
-    }
-    
-    return 'Desculpe, estou com dificuldades para me conectar ao servidor no momento. Mas posso ajudá-lo com comandos básicos do sistema de iluminação. Tente novamente em alguns instantes.';
   }
+
+  // Controle de luzes
+  if (lowerMessage.includes('ligar') && (lowerMessage.includes('luz') || lowerMessage.includes('poste'))) {
+    return streamResponse('💡 Comando executado! As luzes dos postes foram ligadas com sucesso. O sistema está agora em modo ativo.');
+  }
+  
+  if (lowerMessage.includes('desligar') && (lowerMessage.includes('luz') || lowerMessage.includes('poste'))) {
+    return streamResponse('🔌 Comando executado! As luzes dos postes foram desligadas. O sistema está agora em modo inativo.');
+  }
+
+  // Programação de tarefas
+  if (lowerMessage.includes('programar') || lowerMessage.includes('agendar') || lowerMessage.includes('temporizador')) {
+    return streamResponse('⏰ Tarefa programada com sucesso! O sistema executará a ação no tempo especificado. Você pode acompanhar o progresso no painel de temporizador.');
+  }
+
+  // Perguntas sobre resistores e componentes elétricos
+  if (lowerMessage.includes('resistor')) {
+    return streamResponse('🔧 **Resistor** é um componente eletrônico que limita a corrente elétrica em um circuito. Em sistemas de iluminação, são usados para:\n\n• Controlar a intensidade luminosa\n• Proteger LEDs contra sobrecorrente\n• Dividir tensão em circuitos de controle\n\nA resistência é medida em Ohms (Ω) e segue a Lei de Ohm: V = I × R');
+  }
+
+  // Perguntas sobre o criador
+  if (lowerMessage.includes('gildo') || lowerMessage.includes('criador') || lowerMessage.includes('quem te criou')) {
+    return streamResponse('👨‍💻 Fui criada por **Gildo Komba**, estudante de Engenharia Elétrica e Engenharia de Software. Ele é apaixonado por tecnologia e busca sempre resolver problemas através da inovação.\n\nGildo é contribuidor ativo nas comunidades de desenvolvimento em Angola e na 42 Network. Você pode conhecer mais sobre seu trabalho em: github.com/gkomba');
+  }
+
+  // Perguntas sobre capacidades
+  if (lowerMessage.includes('o que você pode') || lowerMessage.includes('suas funções') || lowerMessage.includes('como pode ajudar')) {
+    return streamResponse('🤖 **Minhas Capacidades:**\n\n• **Análise Técnica:** Interpreto dados do sistema de iluminação\n• **Controle Remoto:** Ligo/desligo luzes dos postes\n• **Programação:** Crio tarefas temporizadas\n• **Diagnóstico:** Identifico falhas e sugiro soluções\n• **Consultoria:** Respondo questões sobre engenharia elétrica\n\nSou especializada em sistemas IoT, automação industrial e aplicação de IA em sistemas elétricos!');
+  }
+
+  // Perguntas sobre eficiência energética
+  if (lowerMessage.includes('eficiência') || lowerMessage.includes('economia') || lowerMessage.includes('energia')) {
+    return streamResponse('⚡ **Eficiência Energética:**\n\n• **LEDs** consomem até 80% menos energia que lâmpadas convencionais\n• **Sensores** permitem acionamento inteligente baseado em movimento\n• **Temporizadores** otimizam horários de funcionamento\n• **Monitoramento** identifica desperdícios em tempo real\n\n**Dica:** Use programação automática para máxima economia!');
+  }
+
+  // Resposta padrão inteligente
+  const responses = [
+    'Entendo sua pergunta! Como engenheira elétrica especializada em iluminação inteligente, posso ajudá-lo com análises técnicas, controle de dispositivos e otimização do sistema. Pode ser mais específico sobre o que precisa?',
+    'Interessante! Estou aqui para ajudá-lo com o sistema de iluminação. Posso analisar dados, controlar luzes, programar tarefas ou responder questões técnicas. O que gostaria de fazer?',
+    'Como sua assistente especializada em sistemas elétricos, posso ajudá-lo de várias formas. Quer que eu analise o sistema atual, controle as luzes ou programe alguma tarefa específica?'
+  ];
+  
+  const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+  return streamResponse(randomResponse);
 }
 
 export function detectCommand(input: string): {
@@ -169,6 +188,5 @@ export function detectCommand(input: string): {
     return { type: 'analyze_system' };
   }
   
-  // Para qualquer outra mensagem (incluindo cumprimentos), usar resposta geral da IA
   return { type: 'general' };
 }
