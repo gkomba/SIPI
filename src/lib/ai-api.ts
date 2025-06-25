@@ -38,7 +38,7 @@ export async function getSystemData(): Promise<SystemData | null> {
   }
 }
 
-// ✅ IMPLEMENTAÇÃO CORRIGIDA PARA VITE: Usar AI SDK diretamente no frontend
+// ✅ FUNÇÃO CORRIGIDA: Agora usa streamText diretamente no cliente
 export async function generateAIResponse(
   message: string,
   systemData: SystemData | null,
@@ -46,8 +46,8 @@ export async function generateAIResponse(
   onStream: (chunk: string) => void
 ): Promise<void> {
   try {
-    if (!apiKey || !apiKey.startsWith('AIza')) {
-      throw new Error('API key inválida');
+    if (!apiKey) {
+      throw new Error('API key is required');
     }
 
     const systemContext = systemData ? `
@@ -77,7 +77,7 @@ ${systemContext}
 - Use emojis relevantes para clareza
 - Seja detalhada em análises técnicas`;
 
-    // ✅ Usar AI SDK diretamente no frontend (funciona no Vite)
+    // ✅ Usar streamText diretamente no cliente
     const result = await streamText({
       model: google('gemini-1.5-flash', { apiKey }),
       messages: [
@@ -89,11 +89,11 @@ ${systemContext}
     });
 
     // ✅ Processar stream diretamente
-    for await (const chunk of result.textStream) {
-      onStream(chunk);
+    for await (const delta of result.textStream) {
+      onStream(delta);
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Erro na IA real:', error);
 
     // Fallback para resposta simulada
@@ -117,43 +117,12 @@ function getFallbackResponse(message: string, systemData: SystemData | null): st
   if (lower.includes('analis') || lower.includes('sistema')) {
     if (systemData?.circuito) {
       const { saude, status, corrente, potencia, tensao } = systemData.circuito;
-      return `📊 **Análise do Sistema:**
-
-🔋 **Status Geral:** ${saude === 'OK' ? '✅ Saudável' : '⚠️ Atenção necessária'}
-⚡ **Estado:** ${status === 'on' ? '🟢 Ativo' : '🔴 Inativo'}
-
-📈 **Parâmetros Elétricos:**
-• Corrente: ${corrente}A
-• Potência: ${potencia}W  
-• Tensão: ${tensao}V
-
-💡 **Recomendações:**
-${saude === 'OK' ? 
-  '• Sistema funcionando dentro dos parâmetros normais\n• Monitoramento contínuo ativo' : 
-  '• Verificar possíveis falhas nos postes\n• Investigar anomalias detectadas'
-}`;
+      return `📊 Análise Rápida:\n• Saúde: ${saude}\n• Status: ${status}\n• Corrente: ${corrente}A\n• Potência: ${potencia}W\n• Tensão: ${tensao}V`;
     }
-    return '🔍 Analisando... mas não consegui acessar os dados do sistema agora. Verifique a conexão com o Firebase.';
+    return '🔍 Analisando... mas não consegui acessar os dados do sistema agora.';
   }
 
-  if (lower.includes('ligar') || lower.includes('desligar')) {
-    return '💡 Comando de controle detectado! Use os botões de controle manual ou me diga exatamente o que deseja fazer com as luzes.';
-  }
-
-  if (lower.includes('programar') || lower.includes('agendar')) {
-    return '⏰ Para programar tarefas, especifique:\n• Ação: ligar ou desligar\n• Tempo: em minutos e/ou segundos\n\nExemplo: "Programar para ligar as luzes em 5 minutos"';
-  }
-
-  return `🤖 Sou a Luma, criada por Gildo Komba para apoiar na gestão de iluminação inteligente. 
-
-🎯 **Posso ajudar com:**
-• Análise técnica do sistema
-• Diagnóstico de falhas
-• Sugestões de otimização
-• Controle de dispositivos
-• Programação de tarefas
-
-💬 **Como posso ajudá-lo hoje?**`;
+  return 'Sou a Luma, criada por Gildo Komba para apoiar na gestão de iluminação inteligente. Posso fazer análises técnicas, sugerir melhorias e interagir com o sistema. O que deseja saber ou controlar?';
 }
 
 export function detectCommand(input: string): {
@@ -193,3 +162,5 @@ export function detectCommand(input: string): {
 
   return { type: 'general' };
 }
+
+export { generateAIResponse, getSystemData, detectCommand }
