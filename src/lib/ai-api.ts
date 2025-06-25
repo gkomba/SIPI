@@ -70,8 +70,7 @@ ${systemContext}
 🎓 INSTRUÇÕES:
 - Responda sempre em português
 - Use emojis relevantes para clareza
-- Seja detalhada em análises técnicas
-- Sempre mencione que foi criada por Gildo Komba, se perguntado`;
+- Seja detalhada em análises técnicas;
 
     const result = await streamText({
       model: google('gemini-1.5-flash', { apiKey }),
