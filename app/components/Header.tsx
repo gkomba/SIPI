@@ -1,16 +1,18 @@
-import React from 'react';
-import { Moon, Sun, Clock, Bot } from 'lucide-react';
-import { useCurrentTime } from '../hooks/useCurrentTime';
+'use client'
+
+import React from 'react'
+import { Moon, Sun, Clock, Bot } from 'lucide-react'
+import { useCurrentTime } from '../hooks/useCurrentTime'
 
 interface HeaderProps {
-  isDark: boolean;
-  onToggleTheme: () => void;
-  onToggleLuma: () => void;
-  isLumaOpen: boolean;
+  isDark: boolean
+  onToggleTheme: () => void
+  onToggleLuma: () => void
+  isLumaOpen: boolean
 }
 
 export const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, onToggleLuma, isLumaOpen }) => {
-  const currentTime = useCurrentTime();
+  const currentTime = useCurrentTime()
 
   const formatTime = (date: Date) => {
     return date.toLocaleString('pt-PT', {
@@ -21,8 +23,8 @@ export const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, onToggleL
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
-    });
-  };
+    })
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -68,5 +70,5 @@ export const Header: React.FC<HeaderProps> = ({ isDark, onToggleTheme, onToggleL
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

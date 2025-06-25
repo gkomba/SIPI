@@ -1,11 +1,13 @@
-import React from 'react';
-import { Lightbulb } from 'lucide-react';
-import { PosteData } from '../types';
-import { StatusBadge } from './StatusBadge';
+'use client'
+
+import React from 'react'
+import { Lightbulb } from 'lucide-react'
+import { PosteData } from '../types'
+import { StatusBadge } from './StatusBadge'
 
 interface PostesCardProps {
-  data: PosteData | null;
-  loading: boolean;
+  data: PosteData | null
+  loading: boolean
 }
 
 export const PostesCard: React.FC<PostesCardProps> = ({ data, loading }) => {
@@ -23,7 +25,7 @@ export const PostesCard: React.FC<PostesCardProps> = ({ data, loading }) => {
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -64,5 +66,5 @@ export const PostesCard: React.FC<PostesCardProps> = ({ data, loading }) => {
         <p className="text-gray-500 dark:text-gray-400">Nenhum dado disponível</p>
       )}
     </div>
-  );
-};
+  )
+}

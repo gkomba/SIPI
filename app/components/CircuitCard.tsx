@@ -1,17 +1,19 @@
-import React from 'react';
-import { Activity, Clock, MapPin } from 'lucide-react';
-import { CircuitData } from '../types';
-import { StatusBadge } from './StatusBadge';
+'use client'
+
+import React from 'react'
+import { Activity, Clock, MapPin } from 'lucide-react'
+import { CircuitData } from '../types'
+import { StatusBadge } from './StatusBadge'
 
 interface CircuitCardProps {
-  data: CircuitData | null;
-  loading: boolean;
-  isOnline: boolean;
+  data: CircuitData | null
+  loading: boolean
+  isOnline: boolean
 }
 
 interface PosteStatus {
-  id: number;
-  status: 'OK' | 'ALERT';
+  id: number
+  status: 'OK' | 'ALERT'
 }
 
 export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnline }) => {
@@ -21,28 +23,27 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
       { id: 2, status: 'OK' as const },
       { id: 3, status: 'OK' as const },
       { id: 4, status: 'OK' as const }
-    ];
+    ]
 
     if (info) {
-      // Extract zone numbers from the string
-      const match = info.match(/Zona\(s\)\s+([\d\s]+)/);
+      const match = info.match(/Zona\(s\)\s+([\d\s]+)/)
       if (match) {
-        const failedZones = match[1].trim().split(/\s+/).map(Number);
+        const failedZones = match[1].trim().split(/\s+/).map(Number)
         failedZones.forEach(zoneId => {
-          const poste = postes.find(p => p.id === zoneId);
+          const poste = postes.find(p => p.id === zoneId)
           if (poste) {
-            poste.status = 'ALERT';
+            poste.status = 'ALERT'
           }
-        });
+        })
       }
     }
 
-    return postes;
-  };
+    return postes
+  }
 
   const getSystemStatus = (postes: PosteStatus[]): 'OK' | 'ALERT' => {
-    return postes.some(poste => poste.status === 'ALERT') ? 'ALERT' : 'OK';
-  };
+    return postes.some(poste => poste.status === 'ALERT') ? 'ALERT' : 'OK'
+  }
 
   if (loading) {
     return (
@@ -58,11 +59,11 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
         </div>
       </div>
-    );
+    )
   }
 
-  const postes = data ? parsePostesStatus(data.info) : [];
-  const systemStatus = data ? getSystemStatus(postes) : 'OK';
+  const postes = data ? parsePostesStatus(data.info) : []
+  const systemStatus = data ? getSystemStatus(postes) : 'OK'
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
@@ -81,8 +82,6 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
       
       {data ? (
         <div className="space-y-6">
-          
-
           {/* Status Individual dos Postes */}
           <div>
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Status dos Postes</h3>
@@ -156,5 +155,5 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
         <p className="text-gray-500 dark:text-gray-400">Nenhum dado disponível</p>
       )}
     </div>
-  );
-};
+  )
+}

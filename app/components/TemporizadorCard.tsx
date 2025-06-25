@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Timer, Power, PowerOff, Plus, Minus, Play, Pause, Trash2 } from 'lucide-react';
-import { ScheduledTask } from '../types';
-import { useFirebaseData } from '../hooks/useFirebaseData';
+'use client'
+
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Timer, Power, PowerOff, Plus, Minus, Play, Pause, Trash2 } from 'lucide-react'
+import { ScheduledTask } from '../types'
+import { useFirebaseData } from '../hooks/useFirebaseData'
 
 interface TemporizadorCardProps {
-  onToggleLight: (status: 'on' | 'off') => Promise<void>;
-  currentStatus: 'on' | 'off' | null;
-  loading: boolean;
+  onToggleLight: (status: 'on' | 'off') => Promise<void>
+  currentStatus: 'on' | 'off' | null
+  loading: boolean
 }
 
 export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({ 
@@ -14,133 +16,121 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
   currentStatus, 
   loading 
 }) => {
-  const { fetchScheduledTasks, saveScheduledTask, deleteScheduledTask } = useFirebaseData();
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [minutes, setMinutes] = useState(0);
-  const [seconds, setSeconds] = useState(30);
-  const [action, setAction] = useState<'on' | 'off'>('on');
-  const [tasks, setTasks] = useState<ScheduledTask[]>([]);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  const { fetchScheduledTasks, saveScheduledTask, deleteScheduledTask } = useFirebaseData()
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [minutes, setMinutes] = useState(0)
+  const [seconds, setSeconds] = useState(30)
+  const [action, setAction] = useState<'on' | 'off'>('on')
+  const [tasks, setTasks] = useState<ScheduledTask[]>([])
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true)
   
-  // Use ref to prevent infinite re-renders
-  const tasksRef = useRef<ScheduledTask[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const tasksRef = useRef<ScheduledTask[]>([])
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Stable function to execute and delete task
   const executeAndDeleteTask = useCallback(async (task: ScheduledTask) => {
     try {
-      console.log(`Executing task ${task.id}: ${task.action}`);
+      console.log(`Executing task ${task.id}: ${task.action}`)
       
-      // Execute the task
-      await onToggleLight(task.action);
+      await onToggleLight(task.action)
+      await deleteScheduledTask(task.id)
       
-      // Delete the task from Firebase database
-      await deleteScheduledTask(task.id);
-      
-      // Remove from local state
       setTasks(prevTasks => {
-        const newTasks = prevTasks.filter(t => t.id !== task.id);
-        tasksRef.current = newTasks;
-        return newTasks;
-      });
+        const newTasks = prevTasks.filter(t => t.id !== task.id)
+        tasksRef.current = newTasks
+        return newTasks
+      })
       
-      console.log(`Task ${task.id} executed and deleted successfully`);
+      console.log(`Task ${task.id} executed and deleted successfully`)
     } catch (error) {
-      console.error('Failed to execute and delete task:', error);
+      console.error('Failed to execute and delete task:', error)
     }
-  }, [onToggleLight, deleteScheduledTask]);
+  }, [onToggleLight, deleteScheduledTask])
 
-  // Load tasks from Firebase on component mount only
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
     
     const loadTasks = async () => {
       try {
-        setIsLoadingTasks(true);
-        const firebaseTasks = await fetchScheduledTasks();
+        setIsLoadingTasks(true)
+        const firebaseTasks = await fetchScheduledTasks()
         
         if (isMounted) {
           const tasksWithState = firebaseTasks.map(task => ({
             ...task,
             isActive: false,
             remainingTime: task.time
-          }));
+          }))
           
-          setTasks(tasksWithState);
-          tasksRef.current = tasksWithState;
+          setTasks(tasksWithState)
+          tasksRef.current = tasksWithState
         }
       } catch (error) {
-        console.error('Failed to load tasks:', error);
+        console.error('Failed to load tasks:', error)
       } finally {
         if (isMounted) {
-          setIsLoadingTasks(false);
+          setIsLoadingTasks(false)
         }
       }
-    };
+    }
     
-    loadTasks();
+    loadTasks()
     
     return () => {
-      isMounted = false;
-    };
-  }, []); // Only run once on mount
+      isMounted = false
+    }
+  }, [])
 
-  // Separate effect for the timer interval
   useEffect(() => {
-    // Clear any existing interval
     if (intervalRef.current) {
-      clearInterval(intervalRef.current);
+      clearInterval(intervalRef.current)
     }
 
     intervalRef.current = setInterval(() => {
       setTasks(prevTasks => {
-        const updatedTasks: ScheduledTask[] = [];
-        let hasChanges = false;
+        const updatedTasks: ScheduledTask[] = []
+        let hasChanges = false
 
         for (const task of prevTasks) {
           if (!task.isActive || !task.remainingTime) {
-            updatedTasks.push(task);
-            continue;
+            updatedTasks.push(task)
+            continue
           }
 
-          const newRemainingTime = task.remainingTime - 1;
+          const newRemainingTime = task.remainingTime - 1
 
           if (newRemainingTime <= 0) {
-            // Execute and delete the task
-            executeAndDeleteTask(task);
-            hasChanges = true;
-            // Don't add this task to updatedTasks (it will be removed)
+            executeAndDeleteTask(task)
+            hasChanges = true
           } else {
-            updatedTasks.push({ ...task, remainingTime: newRemainingTime });
-            hasChanges = true;
+            updatedTasks.push({ ...task, remainingTime: newRemainingTime })
+            hasChanges = true
           }
         }
 
-        // Update ref
-        tasksRef.current = updatedTasks;
+        tasksRef.current = updatedTasks
         
-        return hasChanges ? updatedTasks : prevTasks;
-      });
-    }, 1000);
+        return hasChanges ? updatedTasks : prevTasks
+      })
+    }, 1000)
 
     return () => {
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        clearInterval(intervalRef.current)
       }
-    };
-  }, [executeAndDeleteTask]);
+    }
+  }, [executeAndDeleteTask])
 
   const handleToggle = async (status: 'on' | 'off') => {
-    setIsUpdating(true);
+    setIsUpdating(true)
     try {
-      await onToggleLight(status);
+      await onToggleLight(status)
     } finally {
-      setIsUpdating(false);
+      setIsUpdating(false)
     }
-  };
+  }
 
   const addTask = async () => {
-    if (minutes === 0 && seconds === 0) return;
+    if (minutes === 0 && seconds === 0) return
     
     const newTask: ScheduledTask = {
       id: Date.now().toString(),
@@ -150,21 +140,21 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
       time: minutes * 60 + seconds,
       isActive: false,
       remainingTime: minutes * 60 + seconds
-    };
+    }
     
     try {
-      await saveScheduledTask(newTask);
+      await saveScheduledTask(newTask)
       setTasks(prevTasks => {
-        const newTasks = [...prevTasks, newTask];
-        tasksRef.current = newTasks;
-        return newTasks;
-      });
-      setMinutes(0);
-      setSeconds(30);
+        const newTasks = [...prevTasks, newTask]
+        tasksRef.current = newTasks
+        return newTasks
+      })
+      setMinutes(0)
+      setSeconds(30)
     } catch (error) {
-      console.error('Failed to save task:', error);
+      console.error('Failed to save task:', error)
     }
-  };
+  }
 
   const startTask = useCallback((taskId: string) => {
     setTasks(prevTasks => {
@@ -172,40 +162,40 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
         task.id === taskId 
           ? { ...task, isActive: true, remainingTime: task.remainingTime || task.time }
           : { ...task, isActive: false }
-      );
-      tasksRef.current = newTasks;
-      return newTasks;
-    });
-  }, []);
+      )
+      tasksRef.current = newTasks
+      return newTasks
+    })
+  }, [])
 
   const pauseTask = useCallback((taskId: string) => {
     setTasks(prevTasks => {
       const newTasks = prevTasks.map(task => 
         task.id === taskId ? { ...task, isActive: false } : task
-      );
-      tasksRef.current = newTasks;
-      return newTasks;
-    });
-  }, []);
+      )
+      tasksRef.current = newTasks
+      return newTasks
+    })
+  }, [])
 
   const removeTask = useCallback(async (taskId: string) => {
     try {
-      await deleteScheduledTask(taskId);
+      await deleteScheduledTask(taskId)
       setTasks(prevTasks => {
-        const newTasks = prevTasks.filter(task => task.id !== taskId);
-        tasksRef.current = newTasks;
-        return newTasks;
-      });
+        const newTasks = prevTasks.filter(task => task.id !== taskId)
+        tasksRef.current = newTasks
+        return newTasks
+      })
     } catch (error) {
-      console.error('Failed to delete task:', error);
+      console.error('Failed to delete task:', error)
     }
-  }, [deleteScheduledTask]);
+  }, [deleteScheduledTask])
 
   const formatTime = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
@@ -421,5 +411,5 @@ export const TemporizadorCard: React.FC<TemporizadorCardProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

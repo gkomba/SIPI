@@ -1,22 +1,23 @@
-import React, { useState } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { useFirebaseData } from '../hooks/useFirebaseData';
-import { useTheme } from '../hooks/useTheme';
-import { Header } from './Header';
-import { CircuitCard } from './CircuitCard';
-import { PostesCard } from './PostesCard';
-import { TemporizadorCard } from './TemporizadorCard';
-import { LumaAssistant } from './LumaAssistant';
+'use client'
+
+import React, { useState } from 'react'
+import { AlertCircle, RefreshCw } from 'lucide-react'
+import { useFirebaseData } from '../hooks/useFirebaseData'
+import { useTheme } from '../hooks/useTheme'
+import { Header } from './Header'
+import { CircuitCard } from './CircuitCard'
+import { PostesCard } from './PostesCard'
+import { TemporizadorCard } from './TemporizadorCard'
+import { LumaAssistant } from './LumaAssistant'
 
 export const Dashboard: React.FC = () => {
-  const { data, loading, error, isOnline, updateLedStatus, refetch } = useFirebaseData();
-  const { isDark, toggleTheme } = useTheme();
-  const [isLumaOpen, setIsLumaOpen] = useState(false);
+  const { data, loading, error, isOnline, updateLedStatus, refetch } = useFirebaseData()
+  const { isDark, toggleTheme } = useTheme()
+  const [isLumaOpen, setIsLumaOpen] = useState(false)
 
   const handleScheduleTask = (minutes: number, seconds: number, action: 'on' | 'off') => {
-    // This would integrate with your existing timer functionality
-    console.log(`Scheduling task: ${action} in ${minutes}m ${seconds}s`);
-  };
+    console.log(`Scheduling task: ${action} in ${minutes}m ${seconds}s`)
+  }
 
   if (error) {
     return (
@@ -36,7 +37,7 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -99,5 +100,5 @@ export const Dashboard: React.FC = () => {
         onScheduleTask={handleScheduleTask}
       />
     </div>
-  );
-};
+  )
+}

@@ -1,20 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Upload, X, Lightbulb, Timer, Database, Zap, Key, AlertCircle } from 'lucide-react';
-import { generateAIResponse, getSystemData, detectCommand, SystemData } from '../lib/ai-api';
+'use client'
+
+import React, { useState, useRef, useEffect } from 'react'
+import { Bot, Send, Upload, X, Lightbulb, Timer, Database, Zap, Key, AlertCircle } from 'lucide-react'
 
 interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  isStreaming?: boolean;
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  isStreaming?: boolean
 }
 
 interface LumaAssistantProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onToggleLight: (status: 'on' | 'off') => Promise<void>;
-  onScheduleTask: (minutes: number, seconds: number, action: 'on' | 'off') => void;
+  isOpen: boolean
+  onClose: () => void
+  onToggleLight: (status: 'on' | 'off') => Promise<void>
+  onScheduleTask: (minutes: number, seconds: number, action: 'on' | 'off') => void
 }
 
 export const LumaAssistant: React.FC<LumaAssistantProps> = ({ 
@@ -30,74 +31,111 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       content: 'Olá! Eu sou a Luma, sua assistente de IA especializada em sistemas de iluminação inteligente. Fui criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e sugestões de otimização.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n\nComo posso ajudá-lo hoje?',
       timestamp: new Date()
     }
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [apiKey, setApiKey] = useState('');
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  ])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [apiKey, setApiKey] = useState('')
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
+  const [apiKeyError, setApiKeyError] = useState('')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    scrollToBottom()
+  }, [messages])
 
   useEffect(() => {
-    // Carregar API key do localStorage
-    const savedApiKey = localStorage.getItem('gemini_api_key');
+    const savedApiKey = localStorage.getItem('gemini_api_key')
     if (savedApiKey) {
-      setApiKey(savedApiKey);
+      setApiKey(savedApiKey)
     } else {
-      setShowApiKeyInput(true);
+      setShowApiKeyInput(true)
     }
-  }, []);
+  }, [])
 
   const handleApiKeySubmit = () => {
     if (!apiKey.trim()) {
-      setApiKeyError('Por favor, insira uma API key válida');
-      return;
+      setApiKeyError('Por favor, insira uma API key válida')
+      return
     }
     
     if (!apiKey.startsWith('AIza')) {
-      setApiKeyError('API key do Google deve começar com "AIza"');
-      return;
+      setApiKeyError('API key do Google deve começar com "AIza"')
+      return
     }
 
-    localStorage.setItem('gemini_api_key', apiKey);
-    setShowApiKeyInput(false);
-    setApiKeyError('');
-  };
+    localStorage.setItem('gemini_api_key', apiKey)
+    setShowApiKeyInput(false)
+    setApiKeyError('')
+  }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setSelectedFiles(prev => [...prev, ...files]);
-  };
+    const files = Array.from(event.target.files || [])
+    setSelectedFiles(prev => [...prev, ...files])
+  }
 
   const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-  };
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+  }
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('pt-PT', {
       hour: '2-digit',
       minute: '2-digit'
-    });
-  };
+    })
+  }
+
+  const detectCommand = (input: string): {
+    type: 'toggle_lights' | 'schedule_task' | 'analyze_system' | 'general'
+    action?: 'on' | 'off'
+    minutes?: number
+    seconds?: number
+  } => {
+    const lower = input.toLowerCase()
+
+    if (lower.includes('ligar') && (lower.includes('luz') || lower.includes('poste'))) {
+      return { type: 'toggle_lights', action: 'on' }
+    }
+
+    if (lower.includes('desligar') && (lower.includes('luz') || lower.includes('poste'))) {
+      return { type: 'toggle_lights', action: 'off' }
+    }
+
+    const match = lower.match(/(\d+)\s*(minuto|min|segundo|seg)/g)
+    if ((lower.includes('programar') || lower.includes('agendar')) && match) {
+      let minutes = 0
+      let seconds = 0
+
+      match.forEach(item => {
+        const num = parseInt(item.match(/\d+/)?.[0] || '0')
+        if (item.includes('min')) minutes = num
+        if (item.includes('seg')) seconds = num
+      })
+
+      const action = lower.includes('ligar') ? 'on' : 'off'
+      return { type: 'schedule_task', action, minutes, seconds }
+    }
+
+    if (lower.includes('analis') || lower.includes('dados') || lower.includes('sistema')) {
+      return { type: 'analyze_system' }
+    }
+
+    return { type: 'general' }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     
-    if (!input.trim() && selectedFiles.length === 0) return;
+    if (!input.trim() && selectedFiles.length === 0) return
     
     if (!apiKey) {
-      setShowApiKeyInput(true);
-      return;
+      setShowApiKeyInput(true)
+      return
     }
 
     const userMessage: Message = {
@@ -105,72 +143,99 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       role: 'user',
       content: input,
       timestamp: new Date()
-    };
+    }
 
-    setMessages(prev => [...prev, userMessage]);
-    const currentInput = input;
-    setInput('');
-    setSelectedFiles([]);
-    setIsLoading(true);
+    setMessages(prev => [...prev, userMessage])
+    const currentInput = input
+    setInput('')
+    setSelectedFiles([])
+    setIsLoading(true)
 
     try {
       // Detectar tipo de comando
-      const command = detectCommand(currentInput);
-      let systemData: SystemData | null = null;
-      let actionResult = '';
-
-      // Buscar dados do sistema se necessário
-      if (command.type === 'analyze_system' || currentInput.toLowerCase().includes('sistema')) {
-        systemData = await getSystemData();
-      }
+      const command = detectCommand(currentInput)
+      let actionResult = ''
 
       // Executar ações específicas primeiro
       switch (command.type) {
         case 'toggle_lights':
           try {
-            await onToggleLight(command.action!);
-            actionResult = `✅ Luzes ${command.action === 'on' ? 'ligadas' : 'desligadas'} com sucesso!`;
+            await onToggleLight(command.action!)
+            actionResult = `✅ Luzes ${command.action === 'on' ? 'ligadas' : 'desligadas'} com sucesso!`
           } catch (error) {
-            actionResult = `❌ Erro ao ${command.action === 'on' ? 'ligar' : 'desligar'} as luzes.`;
+            actionResult = `❌ Erro ao ${command.action === 'on' ? 'ligar' : 'desligar'} as luzes.`
           }
-          break;
+          break
 
         case 'schedule_task':
-          onScheduleTask(command.minutes!, command.seconds!, command.action!);
-          actionResult = `⏰ Tarefa programada: ${command.action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${command.minutes}m${command.seconds}s`;
-          break;
+          onScheduleTask(command.minutes!, command.seconds!, command.action!)
+          actionResult = `⏰ Tarefa programada: ${command.action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${command.minutes}m${command.seconds}s`
+          break
+      }
+
+      // Buscar dados do sistema se necessário
+      let systemData = null
+      if (command.type === 'analyze_system' || currentInput.toLowerCase().includes('sistema')) {
+        try {
+          const response = await fetch('/api/system-data')
+          if (response.ok) {
+            systemData = await response.json()
+          }
+        } catch (error) {
+          console.warn('Erro ao buscar dados do sistema:', error)
+        }
       }
 
       // Criar mensagem de resposta da IA
-      const assistantMessageId = (Date.now() + 1).toString();
+      const assistantMessageId = (Date.now() + 1).toString()
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
         content: actionResult || '',
         timestamp: new Date(),
         isStreaming: true
-      };
+      }
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, assistantMessage])
 
-      // ✅ Gerar resposta da IA usando streaming real
-      let fullResponse = actionResult ? actionResult + '\n\n' : '';
-      
-      await generateAIResponse(
-        currentInput,
-        systemData,
-        apiKey,
-        (chunk: string) => {
-          fullResponse += chunk;
+      // Gerar resposta da IA usando streaming real do Next.js
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: currentInput,
+          systemData,
+          apiKey
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let fullResponse = actionResult ? actionResult + '\n\n' : ''
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+          fullResponse += chunk
+
           setMessages(prev => 
             prev.map(msg => 
               msg.id === assistantMessageId 
                 ? { ...msg, content: fullResponse, isStreaming: true }
                 : msg
             )
-          );
+          )
         }
-      );
+      }
 
       // Finalizar streaming
       setMessages(prev => 
@@ -179,23 +244,23 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
             ? { ...msg, content: fullResponse, isStreaming: false }
             : msg
         )
-      );
+      )
 
     } catch (error) {
-      console.error('Erro ao processar mensagem:', error);
+      console.error('Erro ao processar mensagem:', error)
       
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: 'Desculpe, ocorreu um erro ao processar sua solicitação. Verifique sua conexão e API key, e tente novamente.',
         timestamp: new Date()
-      };
+      }
 
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorMessage])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const quickActions = [
     {
@@ -218,9 +283,9 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       label: 'Programar Tarefa',
       action: () => setInput('Programar tarefa para ligar luzes em 5 minutos')
     }
-  ];
+  ]
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-200 dark:border-gray-700 z-50 flex flex-col">
@@ -271,8 +336,8 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
               </button>
               <button
                 onClick={() => {
-                  setShowApiKeyInput(false);
-                  setApiKeyError('');
+                  setShowApiKeyInput(false)
+                  setApiKeyError('')
                 }}
                 className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
@@ -409,8 +474,8 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
               rows={2}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e);
+                  e.preventDefault()
+                  handleSubmit(e)
                 }
               }}
             />
@@ -440,5 +505,5 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         </div>
       </form>
     </div>
-  );
-};
+  )
+}
