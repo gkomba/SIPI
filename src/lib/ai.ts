@@ -1,5 +1,7 @@
 import { google } from '@ai-sdk/google';
 import { generateText, streamText } from 'ai';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const model = google('gemini-1.5-flash');
 
