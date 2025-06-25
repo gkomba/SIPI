@@ -6,6 +6,7 @@ import { Header } from './Header';
 import { CircuitCard } from './CircuitCard';
 import { PostesCard } from './PostesCard';
 import { TemporizadorCard } from './TemporizadorCard';
+import { LumaAssistant } from './LumaAssistant';
 
 export const Dashboard: React.FC = () => {
   const { data, loading, error, isOnline, updateLedStatus, refetch } = useFirebaseData();
@@ -28,6 +29,7 @@ export const Dashboard: React.FC = () => {
             Tentar Novamente
           </button>
         </div>
+        <LumaAssistant />
       </div>
     );
   }
@@ -77,6 +79,8 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <LumaAssistant />
     </div>
   );
 };
