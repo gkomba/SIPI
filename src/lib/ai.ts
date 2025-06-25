@@ -20,12 +20,16 @@ Quando não está a programar ou a desenvolver sistemas elétricos/eletrônicos,
 É um contribuidor ativo nas comunidades de desenvolvimento em Angola e na 42 Network, e já participou em projetos reais com impacto direto.
 Perfil GitHub: github.com/gkomba
 
+IMPORTANTE: Responda a TODAS as mensagens do usuário, incluindo cumprimentos simples como "olá", "oi", "bom dia", etc. Seja sempre amigável e receptiva.
+
+Para cumprimentos e conversas casuais, responda de forma natural e amigável, mas sempre mencione que você pode ajudar com o sistema de iluminação.
+
 Você tem acesso às seguintes ferramentas:
 - analiseFromDataBase: Para analisar dados do sistema de iluminação
 - toggleLights: Para ligar/desligar as luzes
 - scheduleTask: Para programar tarefas
 
-Responda sempre em português e mantenha o foco em sistemas de iluminação inteligente.`;
+Responda sempre em português e mantenha o foco em sistemas de iluminação inteligente quando relevante.`;
 
 export interface SystemData {
   circuito?: {
@@ -152,5 +156,6 @@ export function detectCommand(input: string): {
     return { type: 'analyze_system' };
   }
   
+  // Para qualquer outra mensagem (incluindo cumprimentos), usar resposta geral da IA
   return { type: 'general' };
 }

@@ -104,6 +104,10 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         case 'analyze_system':
           systemData = await analyzeSystemData();
           break;
+
+        case 'general':
+          // Para mensagens gerais, não há ação específica, apenas resposta da IA
+          break;
       }
 
       // Criar mensagem de resposta com streaming
@@ -118,8 +122,49 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Se não há ação específica, usar IA para resposta
-      if (!actionResult) {
+      // Se há ação específica, mostrar resultado e depois resposta da IA
+      if (actionResult) {
+        // Aguardar um pouco para mostrar o resultado da ação
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Adicionar resposta adicional da IA se necessário
+        const followUpMessageId = (Date.now() + 2).toString();
+        const followUpMessage: Message = {
+          id: followUpMessageId,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date(),
+          isStreaming: true
+        };
+
+        setMessages(prev => [...prev, followUpMessage]);
+
+        let fullResponse = '';
+        await generateAIResponse(
+          `Ação executada: ${actionResult}. ${currentInput}`,
+          systemData,
+          (chunk: string) => {
+            fullResponse += chunk;
+            setMessages(prev => 
+              prev.map(msg => 
+                msg.id === followUpMessageId 
+                  ? { ...msg, content: fullResponse, isStreaming: true }
+                  : msg
+              )
+            );
+          }
+        );
+
+        // Finalizar streaming
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === followUpMessageId 
+              ? { ...msg, isStreaming: false }
+              : msg
+          )
+        );
+      } else {
+        // Resposta normal da IA
         let fullResponse = '';
         
         await generateAIResponse(
