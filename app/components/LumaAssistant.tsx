@@ -198,7 +198,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 
       setMessages(prev => [...prev, assistantMessage])
 
-      // Gerar resposta da IA usando streaming real do Next.js
+      // Gerar resposta da IA usando streaming
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -215,17 +215,41 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         throw new Error(`HTTP Error: ${response.status}`)
       }
 
-      const reader = response.body?.getReader()
+      if (!response.body) {
+        throw new Error('No response body')
+      }
+
+      const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let fullResponse = actionResult ? actionResult + '\n\n' : ''
 
-      if (reader) {
+      try {
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
 
           const chunk = decoder.decode(value, { stream: true })
-          fullResponse += chunk
+          
+          // Parse the streaming data properly
+          const lines = chunk.split('\n')
+          for (const line of lines) {
+            if (line.startsWith('0:')) {
+              // Extract the JSON content from the streaming format
+              try {
+                const jsonStr = line.substring(2) // Remove '0:' prefix
+                const content = JSON.parse(jsonStr)
+                if (typeof content === 'string') {
+                  fullResponse += content
+                }
+              } catch (parseError) {
+                // If it's not valid JSON, treat as plain text
+                const content = line.substring(2)
+                if (content && !content.startsWith('"') && !content.includes('finishReason')) {
+                  fullResponse += content
+                }
+              }
+            }
+          }
 
           setMessages(prev => 
             prev.map(msg => 
@@ -235,6 +259,8 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
             )
           )
         }
+      } finally {
+        reader.releaseLock()
       }
 
       // Finalizar streaming
