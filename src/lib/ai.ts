@@ -1,7 +1,5 @@
 import { google } from '@ai-sdk/google';
 import { generateText, streamText } from 'ai';
-import dotenv from 'dotenv';
-dotenv.config();
 
 const model = google('gemini-1.5-flash');
 
@@ -85,6 +83,7 @@ export async function generateAIResponse(
             content: contextMessage,
           },
         ],
+        apiKey: "AIzaSyDlXxyXj02YFRdiGRyDbUUEThVlb7p-u_k",
         temperature: 0.7,
         maxTokens: 500,
       });
