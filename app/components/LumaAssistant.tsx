@@ -198,7 +198,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 
       setMessages(prev => [...prev, assistantMessage])
 
-      // Fazer chamada para a API
+      // Fazer chamada para a API com streaming
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -226,12 +226,16 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 
           const chunk = decoder.decode(value, { stream: true })
           
-          // Parse streaming chunks from AI SDK
-          const lines = chunk.split('\n')
+          // Processar chunks do AI SDK
+          const lines = chunk.split('\n').filter(line => line.trim())
+          
           for (const line of lines) {
             if (line.startsWith('0:')) {
               try {
-                const content = JSON.parse(line.slice(2))
+                // Parse do formato AI SDK: 0:"texto"
+                const jsonStr = line.slice(2)
+                const content = JSON.parse(jsonStr)
+                
                 if (typeof content === 'string') {
                   fullResponse += content
                   
@@ -244,7 +248,25 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
                   )
                 }
               } catch (e) {
-                // Ignore parsing errors for non-JSON lines
+                // Ignorar erros de parsing
+              }
+            } else if (line.includes('"')) {
+              // Fallback para outros formatos
+              try {
+                const match = line.match(/"([^"]*)"/)
+                if (match && match[1]) {
+                  fullResponse += match[1]
+                  
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === assistantMessageId 
+                        ? { ...msg, content: fullResponse, isStreaming: true }
+                        : msg
+                    )
+                  )
+                }
+              } catch (e) {
+                // Ignorar erros
               }
             }
           }
@@ -423,7 +445,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
               }`}
             >
-              <div className="text-sm whitespace-pre-wrap leading-relaxed">
+              <div className="text-sm whitespace-pre-wrap leading-relaxed font-normal">
                 {message.content}
               </div>
               {message.isStreaming && (
