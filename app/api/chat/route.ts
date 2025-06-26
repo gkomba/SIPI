@@ -93,7 +93,7 @@ Responda sempre em português e seja útil e eficiente.`
     ],
     tools: {
       ...fetchAllSystemData()
-    }
+    },
     toolChoice: "auto",
     maxSteps: 7,
     temperature: 0.7,
