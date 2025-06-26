@@ -1,7 +1,6 @@
 import { google } from '@ai-sdk/google'
 import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
-import { defineTool } from 'ai'
 import { z } from 'zod'
 
 export const runtime = 'edge'
@@ -22,7 +21,7 @@ interface SystemData {
   }
 }
 
-const fetchAllSystemData = defineTool({
+const fetchAllSystemData = ({
   name: 'get_all_system_data',
   description: 'Busca um único JSON com dados de todos os postes e do sistema GEAR via API local',
   parameters: z.object({}),
