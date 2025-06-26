@@ -3,6 +3,7 @@ import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { tool } from "ai";
+import { fetchAllSystemData } form './tool' 
 
 export const runtime = 'edge'
 
@@ -41,9 +42,6 @@ export async function POST(req: NextRequest) {
 - Controlar luzes e agendar tarefas
 - Explicar conceitos técnicos com clareza
 - Ajudar com programação de ESP32 e sensores
-
-📍 CONTEXTO ATUAL:
-${systemContext}
 
 🎓 INSTRUÇÕES DE FORMATAÇÃO:
 - NUNCA use asteriscos (*) para formatação
