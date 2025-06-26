@@ -85,17 +85,20 @@ Exemplo esperado:
 
 Responda sempre em português e seja útil e eficiente.`
 
-    const result = await streamText({
-      model: google('gemini-1.5-flash'),
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: message }
-      ],
-      tools: [fetchAllSystemData().fetchAllData],
-      // toolCallStreaming: true,
-      toolChoice: "auto",
-      maxSteps: 7,
-    })
+  const result = await streamText({
+    model: google("gemini-1.5-flash"),
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: message }
+    ],
+    tools: {
+      get_system_data: fetchAllSystemData().fetchAllData
+    },
+    toolChoice: "auto",
+    maxSteps: 7,
+    temperature: 0.7,
+    maxTokens: 1024
+  })
 
     return result.toAIStreamResponse()
   } catch (error) {
