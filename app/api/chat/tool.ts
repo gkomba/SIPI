@@ -3,11 +3,9 @@ import { z } from "zod";
 
 export const fetchAllSystemData = () => {
   return {
-    fetchAllData: tool({
-      name: "get_system_data",
-      description: "Busca todos os dados do sistema de iluminação inteligente (inclui circuito, LED e status geral)",
-      parameters: z.object({}),
-      execute: async () => {
+    fetchAllData: tool(
+      z.object({}),
+      async () => {
         try {
           const response = await fetch(`${baseUrl}/api/system-data`);
 
@@ -24,6 +22,6 @@ export const fetchAllSystemData = () => {
           };
         }
       }
-    })
+    )
   };
 };
