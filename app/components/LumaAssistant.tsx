@@ -461,7 +461,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
           <div>
             <h3 className="font-semibold text-white">Luma</h3>
             <p className="text-xs text-white/80">
-              IA Real • Google Gemini • Por Gildo Komba
+              Luma AI
             </p>
           </div>
         </div>
