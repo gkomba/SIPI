@@ -1,16 +1,20 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-
-export const fetchAllSystemData = () => {
+export const fetchAllSystemData = (baseUrl: string) => {
   return {
     get_system_data: tool({
-      description: "Busca todos os dados do sistema de iluminação inteligente ao usuário solicitar análise, status ou dados dos postes",
+      name: "get_system_data",
+      description: "Busca todos os dados do sistema de iluminação inteligente",
       parameters: z.object({}),
       execute: async () => {
         try {
-          const response = await fetch(`${baseUrl}/api/system-data`);
+          const response = await fetch(`${baseUrl}/api/system-data`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          });
 
           if (!response.ok) {
             throw new Error(`Erro ao consultar /api/system-data: ${response.status}`);
