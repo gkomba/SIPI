@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Bot, Send, Upload, X, Lightbulb, Timer, Database, Zap, Key, AlertCircle } from 'lucide-react'
+import { parseAIStreamChunk } from '@/types/aiStreamParser'
 
 interface Message {
   id: string
@@ -223,51 +224,21 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-
+      
           const chunk = decoder.decode(value, { stream: true })
-          
-          // Processar chunks do AI SDK
-          const lines = chunk.split('\n').filter(line => line.trim())
-          
+          const lines = chunk.split('\n').filter(Boolean)
+      
           for (const line of lines) {
-            if (line.startsWith('0:')) {
-              try {
-                // Parse do formato AI SDK: 0:"texto"
-                const jsonStr = line.slice(2)
-                const content = JSON.parse(jsonStr)
-                
-                if (typeof content === 'string') {
-                  fullResponse += content
-                  
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === assistantMessageId 
-                        ? { ...msg, content: fullResponse, isStreaming: true }
-                        : msg
-                    )
-                  )
-                }
-              } catch (e) {
-                // Ignorar erros de parsing
-              }
-            } else if (line.includes('"')) {
-              // Fallback para outros formatos
-              try {
-                const match = line.match(/"([^"]*)"/)
-                if (match && match[1]) {
-                  fullResponse += match[1]
-                  
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === assistantMessageId 
-                        ? { ...msg, content: fullResponse, isStreaming: true }
-                        : msg
-                    )
-                  )
-                }
-              } catch (e) {
-                // Ignorar erros
-              }
+            const delta = parseAIStreamChunk(line)
+            if (delta) {
+              fullResponse += delta
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === assistantMessageId
+                    ? { ...msg, content: fullResponse, isStreaming: true }
+                    : msg
+                )
+              )
             }
           }
         }
