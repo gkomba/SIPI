@@ -92,7 +92,7 @@ Responda sempre em português e seja útil e eficiente.`
       { role: 'user', content: message }
     ],
     tools: {
-      get_system_data: fetchAllSystemData().fetchAllData
+      get_system_data: fetchAllSystemData().get_system_data
     },
     toolChoice: "auto",
     maxSteps: 7,
