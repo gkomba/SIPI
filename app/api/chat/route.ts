@@ -28,12 +28,12 @@ const fetchAllSystemData = defineTool({
   parameters: z.object({}),
   execute: async () => {
     try {
-      const response = await  fetch(`${baseUrl}/api/system-data`){
+      const response = await fetch(`${baseUrl}/api/system-data`, {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json'
         }
-      })
+      });
 
       if (!response.ok) {
         return { error: `Erro HTTP: ${response.status}` }
