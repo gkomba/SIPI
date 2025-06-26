@@ -1,6 +1,7 @@
 import { google } from '@ai-sdk/google'
 import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
+import { getDatabase, ref, get } from 'firebase-admin/database'
 
 export const runtime = 'edge'
 
@@ -19,6 +20,20 @@ interface SystemData {
     type: string
   }
 }
+
+// Tool para pegar dados do Firebase
+const fetchAllSystemData = defineTool({
+  name: 'get_all_system_data',
+  description: 'Busca um único JSON com dados de todos os postes e do sistema GEAR no Firebase',
+  parameters: z.object({}),
+  execute: async () => {
+    const snapshot = await get(ref(getDatabase(), 'sistema')) // Ex: caminho: sistema/
+    if (!snapshot.exists()) {
+      return { error: 'Nenhum dado encontrado no sistema' }
+    }
+    return snapshot.val()
+  }
+})
 
 export async function POST(req: NextRequest) {
   try {
@@ -97,6 +112,8 @@ Responda sempre em português e seja útil e eficiente.`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: message }
       ],
+      tools: [fetchAllSystemData],
+      toolChoice: 'auto',
       temperature: 0.7,
       maxTokens: 1024
     })
