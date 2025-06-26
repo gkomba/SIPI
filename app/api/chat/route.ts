@@ -1,6 +1,8 @@
 import { google } from '@ai-sdk/google'
 import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
+import { defineTool } from 'ai'
+import { z } from 'zod'
 
 export const runtime = 'edge'
 
@@ -20,15 +22,34 @@ interface SystemData {
   }
 }
 
+const fetchAllSystemData = defineTool({
+  name: 'get_all_system_data',
+  description: 'Busca um único JSON com dados de todos os postes e do sistema GEAR via API local',
+  parameters: z.object({}),
+  execute: async () => {
+    try {
+      const response = await  fetch(`${baseUrl}/api/system-data`), {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        return { error: `Erro HTTP: ${response.status}` }
+      }
+
+      const data = await response.json()
+      return data.allData ?? data // depende de como está estruturado o retorno
+    } catch (err) {
+      return { error: 'Erro ao buscar dados do sistema via API' }
+    }
+  }
+})
+
 export async function POST(req: NextRequest) {
   try {
-    const { message, systemData } = await req.json()
-
-    const systemContext = systemData ? `
-📡 **Dados do Sistema Atual**:
-- Circuito: ${JSON.stringify(systemData.circuito, null, 2)}
-- LED: ${JSON.stringify(systemData.led, null, 2)}
-` : '⚠️ Dados do sistema não disponíveis no momento.'
+    const { message } = await req.json()
 
     const systemPrompt = `Você é Luma, uma IA especializada em sistemas de iluminação pública inteligente, criada por Gildo Komba.
 
@@ -97,6 +118,8 @@ Responda sempre em português e seja útil e eficiente.`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: message }
       ],
+      tools: [fetchAllSystemData],
+      toolChoice: 'auto',
       temperature: 0.7,
       maxTokens: 1024
     })
