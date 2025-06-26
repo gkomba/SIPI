@@ -277,7 +277,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: currentInput,
+          messages: currentInput,
           systemData,
           apiKey
         })

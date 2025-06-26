@@ -1,8 +1,6 @@
 import { google } from '@ai-sdk/google'
 import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
-import { z } from 'zod'
-import { tool } from "ai";
 import { fetchAllSystemData } from './tool' 
 
 export const runtime = 'edge'
@@ -25,7 +23,10 @@ interface SystemData {
 
 export async function POST(req: NextRequest) {
   try {
-    const { message } = await req.json()
+    const { messages } = await req.json()
+    if (!Array.isArray(messages) || !messages.every(msg => msg.role && msg.content)) {
+      return new Response('Formato inválido de mensagens', { status: 400 });
+    }
     const baseUrl = req.nextUrl.origin
 
     const systemPrompt = `Você é Luma, uma IA especializada em sistemas de iluminação pública inteligente, criada por Gildo Komba.
@@ -85,16 +86,19 @@ Exemplo esperado:
 • Saúde do sistema: ALERTA
 
 Responda sempre em português e seja útil e eficiente.`
-  const tools = fetchAllSystemData(baseUrl)
+
+
+  // const tools = fetchAllSystemData(baseUrl)
+  console.log('Mensagens recebidas:', messages)
   const result = await streamText({
     model: google("gemini-1.5-flash"),
     messages: [
       { role: 'system', content: systemPrompt },
-      ...message
+      ...messages
     ],
-    tools,
-    toolChoice: "auto",
-    maxSteps: 7,
+    // tools,
+    // toolChoice: "auto",
+    // maxSteps: 7,
     temperature: 0.7,
     maxTokens: 1024
   })
