@@ -26,6 +26,7 @@ interface SystemData {
 export async function POST(req: NextRequest) {
   try {
     const { message } = await req.json()
+    const baseUrl = req.nextUrl.origin
 
     const systemPrompt = `Você é Luma, uma IA especializada em sistemas de iluminação pública inteligente, criada por Gildo Komba.
 
@@ -84,16 +85,14 @@ Exemplo esperado:
 • Saúde do sistema: ALERTA
 
 Responda sempre em português e seja útil e eficiente.`
-
+  const tools = fetchAllSystemData(baseUrl)
   const result = await streamText({
     model: google("gemini-1.5-flash"),
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: message }
+      ...messages
     ],
-    tools: {
-      ...fetchAllSystemData()
-    },
+    tools,
     toolChoice: "auto",
     maxSteps: 7,
     temperature: 0.7,
