@@ -4,17 +4,11 @@ import { z } from "zod";
 export const fetchAllSystemData = (baseUrl: string) => {
   return {
     get_system_data: tool({
-      name: "get_system_data",
-      description: "Busca todos os dados do sistema de iluminação inteligente",
+      description: "Busca todos os dados do sistema de iluminação inteligente ao usuário solicitar análise, status ou dados dos postes",
       parameters: z.object({}),
       execute: async () => {
         try {
-          const response = await fetch(`${baseUrl}/api/system-data`, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            }
-          });
+          const response = await fetch(`${baseUrl}/api/system-data`);
 
           if (!response.ok) {
             throw new Error(`Erro ao consultar /api/system-data: ${response.status}`);
