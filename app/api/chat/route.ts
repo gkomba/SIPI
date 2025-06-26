@@ -1,7 +1,6 @@
 import { google } from '@ai-sdk/google'
 import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
-import { getDatabase, ref, get } from 'firebase-admin/database'
 
 export const runtime = 'edge'
 
