@@ -21,6 +21,7 @@ interface SystemData {
 }
 
 export async function POST(req: NextRequest) {
+   console.log('Recebendo request no /api/chat...')
   try {
     const { messages, apiKey, systemData } = await req.json()
 
