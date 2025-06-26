@@ -94,7 +94,7 @@ Responda sempre em português e seja útil e eficiente.`
       tools: {
         ...fetchAllSystemData(),
       },
-      toolCallStreaming: true,
+      // toolCallStreaming: true,
       toolChoice: "auto",
       maxSteps: 7,
     })
