@@ -21,7 +21,7 @@ interface SystemData {
 }
 
 export async function POST(req: NextRequest) {
-  console.log('📥 Recebendo request no /api/chat...')
+   console.log('Recebendo request no /api/chat...')
   try {
     const { messages, apiKey, systemData } = await req.json()
 
@@ -74,7 +74,7 @@ INSTRUÇÕES TÉCNICAS:
 Responda sempre em português e seja útil e eficiente.`
 
     const result = await streamText({
-      model: google('gemini-1.5-flash', { apiKey }), // 👈 Correção aqui
+      model: google('gemini-1.5-flash'),
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages
@@ -85,7 +85,7 @@ Responda sempre em português e seja útil e eficiente.`
 
     return result.toAIStreamResponse()
   } catch (error) {
-    console.error('❌ Erro na API de chat:', error)
+    console.error('Erro na API de chat:', error)
     return new Response('Erro interno do servidor', { status: 500 })
   }
 }
