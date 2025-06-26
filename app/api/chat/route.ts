@@ -2,6 +2,7 @@ import { google } from '@ai-sdk/google'
 import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
+import { tool } from "ai";
 
 export const runtime = 'edge'
 
@@ -21,30 +22,32 @@ interface SystemData {
   }
 }
 
-const fetchAllSystemData = ({
-  name: 'get_all_system_data',
-  description: 'Busca um único JSON com dados de todos os postes e do sistema GEAR via API local',
-  parameters: z.object({}),
-  execute: async () => {
-    try {
-      const response = await fetch(`${baseUrl}/api/system-data`, {
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json'
+export const fetchAllSystemData = () => {
+  return {
+    fetchAllData: tool({
+      name: "get_system_data",
+      description: "Busca todos os dados do sistema de iluminação inteligente (inclui circuito, LED e status geral)",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const response = await fetch(`${baseUrl}/api/system-data`);
+
+          if (!response.ok) {
+            throw new Error(`Erro ao consultar /api/system-data: ${response.status}`);
+          }
+
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error("Erro na tool get_system_data:", error);
+          return {
+            error: "Não foi possível buscar os dados do sistema no momento."
+          };
         }
-      });
-
-      if (!response.ok) {
-        return { error: `Erro HTTP: ${response.status}` }
       }
-
-      const data = await response.json()
-      return data.allData ?? data // depende de como está estruturado o retorno
-    } catch (err) {
-      return { error: 'Erro ao buscar dados do sistema via API' }
-    }
-  }
-})
+    })
+  };
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -117,10 +120,12 @@ Responda sempre em português e seja útil e eficiente.`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: message }
       ],
-      tools: [fetchAllSystemData],
-      toolChoice: 'auto',
-      temperature: 0.7,
-      maxTokens: 1024
+      tools: {
+        ...fetchAllSystemData(),
+      },
+      toolCallStreaming: true,
+      toolChoice: "auto",
+      maxSteps: 7,
     })
 
     return result.toAIStreamResponse()
