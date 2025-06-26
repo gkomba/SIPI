@@ -65,6 +65,30 @@ ${systemContext}
 - Seja preciso em recomendações técnicas
 - Seja sempre curta e objectiva em perguntas simples.
 
+QUANDO HOUVER INFORMAÇÕES DE STATUS DO SISTEMA (como info, status, saúde ou time):
+
+• Seja clara, concisa e criativa na apresentação
+• Destaque falhas, alertas ou anomalias com ícones e blocos visuais
+• Use cabeçalhos como: "⚠️ FALHAS DETECTADAS", "✅ SISTEMA ESTÁVEL", "🟡 ALERTA DETECTADO"
+• Interprete o campo "info" e destaque zonas afetadas de forma legível
+• Converta datas e horas para o formato DD/MM/YYYY às HH:MM
+• NÃO apresente os dados como JSON
+• NUNCA use markdown, asteriscos ou formatação técnica — apenas texto direto
+
+Exemplo esperado:
+
+⚠️ FALHAS DETECTADAS
+
+🟡 Estado do Sistema: ON  
+🕒 Última verificação: 25/06/2025 às 15:26  
+
+📍 Zona com alerta:
+• Zona 3
+
+📋 Detalhes:
+• Falha(s) encontrada(s) na(s) Zona(s) 3  
+• Saúde do sistema: ALERTA
+
 Responda sempre em português e seja útil e eficiente.`
 
     const result = await streamText({
