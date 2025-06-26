@@ -21,51 +21,48 @@ interface SystemData {
 }
 
 export async function POST(req: NextRequest) {
-   console.log('Recebendo request no /api/chat...')
   try {
-    const { messages, apiKey, systemData } = await req.json()
+    const { message, systemData, apiKey } = await req.json()
 
     if (!apiKey) {
       return new Response('API key is required', { status: 400 })
     }
 
     const systemContext = systemData ? `
-📡 Dados do Sistema Atual:
+📡 **Dados do Sistema Atual**:
 - Circuito: ${JSON.stringify(systemData.circuito, null, 2)}
 - LED: ${JSON.stringify(systemData.led, null, 2)}
 ` : '⚠️ Dados do sistema não disponíveis no momento.'
 
     const systemPrompt = `Você é Luma, uma IA especializada em sistemas de iluminação pública inteligente, criada por Gildo Komba.
 
-PERSONALIDADE E COMPORTAMENTO:
+🧠 PERSONALIDADE E COMPORTAMENTO:
 - Seja natural e direta, sem se apresentar repetidamente
 - Não use "Olá" ou cumprimentos em todas as respostas
 - Seja profissional mas amigável
 - Vá direto ao ponto quando apropriado
 - Use emojis com moderação e apenas quando relevantes
 
-CAPACIDADES:
+🎯 CAPACIDADES:
 - Diagnosticar e interpretar falhas no sistema de iluminação
 - Sugerir otimizações de energia
 - Controlar luzes e agendar tarefas
 - Explicar conceitos técnicos com clareza
 - Ajudar com programação de ESP32 e sensores
 
-CONTEXTO ATUAL:
+📍 CONTEXTO ATUAL:
 ${systemContext}
 
-INSTRUÇÕES DE FORMATAÇÃO CRÍTICAS:
+🎓 INSTRUÇÕES DE FORMATAÇÃO:
 - NUNCA use asteriscos (*) para formatação
-- NUNCA use markdown com asteriscos
 - Use texto simples e claro
-- Para código, use blocos de código simples
+- Para código, use blocos de código sem asteriscos
 - Para listas, use • ou números simples
-- Para ênfase, use MAIÚSCULAS quando necessário
+- Para ênfase, use MAIÚSCULAS ou palavras em negrito apenas quando necessário
 - Mantenha respostas organizadas e legíveis
 - Para códigos longos, organize em seções claras
-- Use quebras de linha simples para organizar o texto
 
-INSTRUÇÕES TÉCNICAS:
+🔧 INSTRUÇÕES TÉCNICAS:
 - Para ESP32, sempre mencione pinos específicos
 - Explique conceitos técnicos de forma clara
 - Forneça exemplos práticos quando possível
@@ -74,10 +71,10 @@ INSTRUÇÕES TÉCNICAS:
 Responda sempre em português e seja útil e eficiente.`
 
     const result = await streamText({
-      model: google('gemini-1.5-flash'),
+      model: google('gemini-1.5-flash', { apiKey }),
       messages: [
         { role: 'system', content: systemPrompt },
-        ...messages
+        { role: 'user', content: message }
       ],
       temperature: 0.7,
       maxTokens: 1024
