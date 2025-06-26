@@ -22,11 +22,7 @@ interface SystemData {
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, systemData, apiKey } = await req.json()
-
-    if (!apiKey) {
-      return new Response('API key is required', { status: 400 })
-    }
+    const { message, systemData } = await req.json()
 
     const systemContext = systemData ? `
 📡 **Dados do Sistema Atual**:
@@ -71,7 +67,7 @@ ${systemContext}
 Responda sempre em português e seja útil e eficiente.`
 
     const result = await streamText({
-      model: google('gemini-1.5-flash', { apiKey }),
+      model: google('gemini-1.5-flash'),
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: message }
