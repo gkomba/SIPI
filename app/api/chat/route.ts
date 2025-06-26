@@ -3,7 +3,7 @@ import { streamText } from 'ai'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { tool } from "ai";
-import { fetchAllSystemData } form './tool' 
+import { fetchAllSystemData } from './tool' 
 
 export const runtime = 'edge'
 
