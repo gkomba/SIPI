@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Bot, Send, Upload, X, Lightbulb, Timer, Database, Zap, Key, AlertCircle } from 'lucide-react'
-import { parseAIStreamChunk } from '@/types/aiStreamParser'
+import { parseAIStreamChunk } from '../types/aiStreamParser'
 
 interface Message {
   id: string
