@@ -5,9 +5,10 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 export const fetchAllSystemData = () => {
   return {
-    get_system_data: tool(
-      z.object({}),
-      async () => {
+    get_system_data: tool({
+      description: "Busca todos os dados do sistema de iluminação inteligente do endpoint /api/system-data",
+      parameters: z.object({}),
+      execute: async () => {
         try {
           const response = await fetch(`${baseUrl}/api/system-data`);
 
@@ -24,6 +25,6 @@ export const fetchAllSystemData = () => {
           };
         }
       }
-    )
+    })
   };
 };
