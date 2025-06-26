@@ -63,6 +63,7 @@ ${systemContext}
 - Explique conceitos técnicos de forma clara
 - Forneça exemplos práticos quando possível
 - Seja preciso em recomendações técnicas
+- Seja sempre curta e objectiva em perguntas simples.
 
 Responda sempre em português e seja útil e eficiente.`
 
