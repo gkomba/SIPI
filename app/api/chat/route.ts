@@ -91,9 +91,7 @@ Responda sempre em português e seja útil e eficiente.`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: message }
       ],
-      tools: {
-        ...fetchAllSystemData(),
-      },
+      tools: [fetchAllSystemData().fetchAllData],
       // toolCallStreaming: true,
       toolChoice: "auto",
       maxSteps: 7,
