@@ -24,11 +24,46 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
   onToggleLight, 
   onScheduleTask 
 }) => {
+// Define quickActions array
+const quickActions = [
+  {
+    label: 'Ligar Luz',
+    icon: Lightbulb,
+    action: async () => {
+      await onToggleLight('on')
+    }
+  },
+  {
+    label: 'Desligar Luz',
+    icon: Lightbulb,
+    action: async () => {
+      await onToggleLight('off')
+    }
+  },
+  {
+    label: 'Agendar Ligar',
+    icon: Timer,
+    action: () => {
+      // Exemplo: agenda para ligar em 1 minuto
+      onScheduleTask(1, 0, 'on')
+    }
+  },
+  {
+    label: 'Agendar Desligar',
+    icon: Timer,
+    action: () => {
+      // Exemplo: agenda para desligar em 1 minuto
+      onScheduleTask(1, 0, 'off')
+    }
+  }
+]
+
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Sou a Luma, sua assistente especializada em sistemas de iluminação inteligente. Criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá-lo?',
+      content: 'Sou a Luma, sua assistente Engenheira eletrica. Criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá-lo?',
       timestamp: new Date()
     }
   ])
@@ -59,153 +94,16 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     }
   }, [])
 
-  const handleApiKeySubmit = () => {
-    if (!apiKey.trim()) {
-      setApiKeyError('Por favor, insira uma API key válida')
-      return
-    }
-    
-    if (!apiKey.startsWith('AIza')) {
-      setApiKeyError('API key do Google deve começar com "AIza"')
-      return
-    }
-
-    localStorage.setItem('gemini_api_key', apiKey)
-    setShowApiKeyInput(false)
-    setApiKeyError('')
-  }
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || [])
-    setSelectedFiles(prev => [...prev, ...files])
-  }
-
-  const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('pt-PT', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const detectCommand = (input: string): {
-    type: 'toggle_lights' | 'schedule_task' | 'analyze_system' | 'general'
-    action?: 'on' | 'off'
-    minutes?: number
-    seconds?: number
-  } => {
-    const lower = input.toLowerCase()
-
-    if (lower.includes('ligar') && (lower.includes('luz') || lower.includes('poste'))) {
-      return { type: 'toggle_lights', action: 'on' }
-    }
-
-    if (lower.includes('desligar') && (lower.includes('luz') || lower.includes('poste'))) {
-      return { type: 'toggle_lights', action: 'off' }
-    }
-
-    const match = lower.match(/(\d+)\s*(minuto|min|segundo|seg)/g)
-    if ((lower.includes('programar') || lower.includes('agendar')) && match) {
-      let minutes = 0
-      let seconds = 0
-
-      match.forEach(item => {
-        const num = parseInt(item.match(/\d+/)?.[0] || '0')
-        if (item.includes('min')) minutes = num
-        if (item.includes('seg')) seconds = num
-      })
-
-      const action = lower.includes('ligar') ? 'on' : 'off'
-      return { type: 'schedule_task', action, minutes, seconds }
-    }
-
-    if (lower.includes('analis') || lower.includes('dados') || lower.includes('sistema')) {
-      return { type: 'analyze_system' }
-    }
-
-    return { type: 'general' }
-  }
-
-  // Função para limpar formatação com asteriscos e melhorar legibilidade
-  const cleanFormatting = (text: string): string => {
-    return text
-      // Remove asteriscos de formatação
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      // Limpa formatação markdown desnecessária
-      .replace(/#{1,6}\s/g, '')
-      // Melhora espaçamento
-      .replace(/\n{3,}/g, '\n\n')
-      // Remove espaços extras
-      .replace(/[ \t]+/g, ' ')
-      .trim()
-  }
-
-  // Função para simular streaming de texto caractere por caractere
-  const simulateTextStreaming = (text: string, messageId: string, initialContent: string = '') => {
-    // Limpar formatação antes do streaming
-    const cleanText = cleanFormatting(text)
-    let currentIndex = 0
-    let displayedContent = initialContent
-    
-    const streamNextChar = () => {
-      if (currentIndex < cleanText.length) {
-        displayedContent += cleanText[currentIndex]
-        currentIndex++
-        
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: displayedContent, isStreaming: true }
-              : msg
-          )
-        )
-        
-        // Velocidade variável baseada no caractere
-        let delay = 25 // Velocidade base mais rápida
-        const char = cleanText[currentIndex - 1]
-        
-        if (char === '.' || char === '!' || char === '?') {
-          delay = 150 // Pausa após pontuação
-        } else if (char === ',' || char === ';') {
-          delay = 80 // Pausa média após vírgulas
-        } else if (char === ' ') {
-          delay = 35 // Pausa pequena após espaços
-        } else if (char === '\n') {
-          delay = 100 // Pausa para quebras de linha
-        }
-        
-        streamingTimeoutRef.current = setTimeout(streamNextChar, delay)
-      } else {
-        // Finalizar streaming
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: displayedContent, isStreaming: false }
-              : msg
-          )
-        )
-        setIsLoading(false)
-      }
-    }
-    
-    streamNextChar()
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!input.trim() && selectedFiles.length === 0) return
-    
+
     if (!apiKey) {
       setShowApiKeyInput(true)
       return
     }
 
-    // Limpar timeout anterior se existir
     if (streamingTimeoutRef.current) {
       clearTimeout(streamingTimeoutRef.current)
     }
@@ -223,63 +121,54 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
     setSelectedFiles([])
     setIsLoading(true)
 
+    const assistantMessageId = (Date.now() + 1).toString()
+    // Função para limpar e formatar a resposta da IA
+    function formatAIResponse(text: string): string {
+      // Remove asteriscos, marcadores de lista e excesso de espaços
+      let cleaned = text
+      .replace(/[*•\-]+/g, '') // Remove asteriscos, bullets e traços
+      .replace(/^\s*[\d]+\.\s*/gm, '') // Remove listas numeradas
+      .replace(/`{1,3}([\s\S]*?)`{1,3}/g, '$1') // Remove backticks de blocos de código
+      .replace(/\n{3,}/g, '\n\n') // Limita múltiplas quebras de linha
+      .replace(/[ ]{2,}/g, ' ') // Remove espaços duplos
+      .trim()
+
+      // Tenta formatar JSON se for detectado
+      try {
+      if (
+        (cleaned.startsWith('{') && cleaned.endsWith('}')) ||
+        (cleaned.startsWith('[') && cleaned.endsWith(']'))
+      ) {
+        const parsed = JSON.parse(cleaned)
+        cleaned = JSON.stringify(parsed, null, 2)
+      }
+      } catch {
+      // Não é JSON válido, ignora
+      }
+
+      // Formata títulos Markdown (#, ##, ###) para negrito simples
+      cleaned = cleaned.replace(/^#{1,6}\s*(.*)$/gm, (_, title) => `**${title.trim()}**`)
+
+      return cleaned
+    }
+
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      isStreaming: true
+    }
+    setMessages(prev => [...prev, assistantMessage])
+
     try {
-      // Detectar tipo de comando
-      const command = detectCommand(currentInput)
-      let actionResult = ''
-
-      // Executar ações específicas primeiro
-      switch (command.type) {
-        case 'toggle_lights':
-          try {
-            await onToggleLight(command.action!)
-            actionResult = `✅ Luzes ${command.action === 'on' ? 'ligadas' : 'desligadas'} com sucesso!\n\n`
-          } catch (error) {
-            actionResult = `❌ Erro ao ${command.action === 'on' ? 'ligar' : 'desligar'} as luzes.\n\n`
-          }
-          break
-
-        case 'schedule_task':
-          onScheduleTask(command.minutes!, command.seconds!, command.action!)
-          actionResult = `⏰ Tarefa programada: ${command.action === 'on' ? 'Ligar' : 'Desligar'} luzes em ${command.minutes}m${command.seconds}s\n\n`
-          break
-      }
-
-      // Buscar dados do sistema se necessário
-      let systemData = null
-      if (command.type === 'analyze_system' || currentInput.toLowerCase().includes('sistema')) {
-        try {
-          const response = await fetch('/api/system-data')
-          if (response.ok) {
-            systemData = await response.json()
-          }
-        } catch (error) {
-          console.warn('Erro ao buscar dados do sistema:', error)
-        }
-      }
-
-      // Criar mensagem de resposta da IA
-      const assistantMessageId = (Date.now() + 1).toString()
-      const assistantMessage: Message = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: actionResult,
-        timestamp: new Date(),
-        isStreaming: true
-      }
-
-      setMessages(prev => [...prev, assistantMessage])
-
-      // Gerar resposta da IA
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`https://api-lsts.onrender.com/prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           messages: currentInput,
-          systemData,
-          apiKey
         })
       })
 
@@ -287,110 +176,99 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
         throw new Error(`HTTP Error: ${response.status}`)
       }
 
-      if (!response.body) {
-        throw new Error('No response body')
-      }
+      const result = await response.json()
+      const aiResponse = result.message || 'Sem resposta da IA'
 
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let fullAiResponse = ''
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value, { stream: true })
-          
-          // Parse the streaming data properly
-          const lines = chunk.split('\n')
-          for (const line of lines) {
-            if (line.startsWith('0:')) {
-              // Extract the JSON content from the streaming format
-              try {
-                const jsonStr = line.substring(2) // Remove '0:' prefix
-                const content = JSON.parse(jsonStr)
-                if (typeof content === 'string') {
-                  fullAiResponse += content
-                }
-              } catch (parseError) {
-                // If it's not valid JSON, treat as plain text
-                const content = line.substring(2)
-                if (content && !content.startsWith('"') && !content.includes('finishReason')) {
-                  fullAiResponse += content
-                }
-              }
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock()
-      }
-
-      // Iniciar streaming visual do texto completo
-      if (fullAiResponse.trim()) {
-        simulateTextStreaming(fullAiResponse, assistantMessageId, actionResult)
-      } else {
-        // Se não há resposta da IA, finalizar com apenas o resultado da ação
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === assistantMessageId 
-              ? { ...msg, content: actionResult || 'Comando executado com sucesso!', isStreaming: false }
-              : msg
-          )
-        )
-        setIsLoading(false)
-      }
+      simulateTextStreaming(aiResponse, assistantMessageId)
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error)
-      
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua solicitação. Verifique sua conexão e API key, e tente novamente.',
-        timestamp: new Date()
-      }
 
-      setMessages(prev => [...prev, errorMessage])
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMessageId
+          ? { ...msg, content: 'Erro ao gerar resposta.', isStreaming: false }
+          : msg
+      ))
+    } finally {
       setIsLoading(false)
     }
   }
 
-  // Limpar timeout quando componente for desmontado
-  useEffect(() => {
-    return () => {
-      if (streamingTimeoutRef.current) {
-        clearTimeout(streamingTimeoutRef.current)
+  const simulateTextStreaming = (text: string, messageId: string, initialContent: string = '') => {
+    let currentIndex = 0
+    let displayedContent = initialContent
+
+    const streamNextChar = () => {
+      if (currentIndex < text.length) {
+        displayedContent += text[currentIndex]
+        currentIndex++
+
+        setMessages(prev => prev.map(msg =>
+          msg.id === messageId
+            ? { ...msg, content: displayedContent, isStreaming: true }
+            : msg
+        ))
+
+        streamingTimeoutRef.current = setTimeout(streamNextChar, 20)
+      } else {
+        setMessages(prev => prev.map(msg =>
+          msg.id === messageId
+            ? { ...msg, content: displayedContent, isStreaming: false }
+            : msg
+        ))
       }
     }
-  }, [])
 
-  const quickActions = [
-    {
-      icon: Lightbulb,
-      label: 'Ligar Luzes',
-      action: () => setInput('Ligar as luzes dos postes')
-    },
-    {
-      icon: Zap,
-      label: 'Desligar Luzes',
-      action: () => setInput('Desligar as luzes dos postes')
-    },
-    {
-      icon: Database,
-      label: 'Analisar Sistema',
-      action: () => setInput('Analisar dados do sistema')
-    },
-    {
-      icon: Timer,
-      label: 'Programar Tarefa',
-      action: () => setInput('Programar tarefa para ligar luzes em 5 minutos')
+    streamNextChar()
+  }
+
+  // Handle API Key submit
+  const handleApiKeySubmit = () => {
+    if (!apiKey.trim()) {
+      setApiKeyError('A API key não pode estar vazia.')
+      return
     }
-  ]
+    try {
+      localStorage.setItem('gemini_api_key', apiKey)
+      setShowApiKeyInput(false)
+      setApiKeyError('')
+    } catch (error) {
+      setApiKeyError('Erro ao salvar a API key.')
+    }
+  }
 
-  if (!isOpen) return null
+  
+  
+  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>): void {
+    const files = event.target.files
+    if (!files) return
+    const fileArray = Array.from(files)
+    setSelectedFiles(prev => [...prev, ...fileArray])
+    // Reset input so same file can be selected again if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+  function removeFile(index: number): void {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+  }
+  function formatTime(timestamp: Date): React.ReactNode {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
 
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    const timeStr = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+
+    if (isToday) {
+      return `Hoje às ${timeStr}`
+    } else {
+      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${timeStr}`
+    }
+  }
   return (
     <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-200 dark:border-gray-700 z-50 flex flex-col">
       {/* API Key Modal */}
@@ -610,4 +488,41 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
       </form>
     </div>
   )
+}
+// Função de exemplo para onToggleLight, pode ser substituída por lógica real
+async function onToggleLight(status: 'on' | 'off'): Promise<void> {
+  // Aqui você pode integrar com seu sistema de automação real
+  // Por exemplo, enviar uma requisição para um endpoint que controla a luz
+  try {
+    await fetch(`https://api-lsts.onrender.com/controlLigth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    // Opcional: mostrar feedback ao usuário
+    console.log(`Luz ${status === 'on' ? 'ligada' : 'desligada'}`)
+  } catch (error) {
+    console.error('Erro ao alternar luz:', error)
+  }
+}
+function onScheduleTask(minutes: number, seconds: number, action: 'on' | 'off') {
+  // Exemplo: Integração com sistema de automação para agendar tarefa
+  // Aqui você pode substituir por lógica real, como chamada de API ou manipulação de estado
+  fetch('/api/schedule', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      minutes,
+      seconds,
+      action,
+    }),
+  })
+    .then(() => {
+      console.log(
+        `Tarefa agendada: ${action === 'on' ? 'Ligar' : 'Desligar'} em ${minutes}m ${seconds}s`
+      )
+    })
+    .catch((error) => {
+      console.error('Erro ao agendar tarefa:', error)
+    })
 }

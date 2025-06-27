@@ -40,6 +40,24 @@ export const Dashboard: React.FC = () => {
     )
   }
 
+  async function onToggleLight(status: 'on' | 'off'): Promise<void> {
+    try {
+      await updateLedStatus(status)
+    } catch (err) {
+      console.error('Failed to toggle light:', err)
+    }
+  }
+
+  function onScheduleTask(minutes: number, seconds: number, action: 'on' | 'off'): void {
+    const totalMs = (minutes * 60 + seconds) * 1000
+    console.log(`Task scheduled: Turn ${action} in ${minutes}m ${seconds}s (${totalMs}ms)`)
+
+    setTimeout(() => {
+      onToggleLight(action)
+      console.log(`Task executed: Light turned ${action}`)
+    }, totalMs)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       <Header 
@@ -93,12 +111,15 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <LumaAssistant 
-        isOpen={isLumaOpen}
-        onClose={() => setIsLumaOpen(false)}
-        onToggleLight={updateLedStatus}
-        onScheduleTask={handleScheduleTask}
-      />
+      {/* Renderização condicional do LumaAssistant */}
+      {isLumaOpen && (
+        <LumaAssistant 
+          isOpen={isLumaOpen}
+          onClose={() => setIsLumaOpen(false)}
+          onToggleLight={onToggleLight}
+          onScheduleTask={onScheduleTask}
+        />
+      )}
     </div>
   )
 }
