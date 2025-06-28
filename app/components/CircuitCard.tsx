@@ -54,7 +54,7 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
     if (!data) return;
 
     const lastUpdate = data.time; // "2025-06-28 03:34:20"
-    if (!alertIds.length) return; // nada em alerta
+    const postesStr  = alertIds.length ? alertIds.join(" ") : "GK";
     if (lastSentRef.current === lastUpdate) return; // já enviou para este timestamp
 
     lastSentRef.current = lastUpdate;
@@ -66,8 +66,8 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             data: {
-              postes: alertIds.join(" "), // "1 2"
-              lastUpdate // "2025-06-28 03:34:20"
+              postes: postesStr,
+              lastUpdate
             }
           })
         });
