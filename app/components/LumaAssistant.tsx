@@ -1,7 +1,21 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
-import { Bot, Send, Upload, X, Lightbulb, Timer, Database, Zap, Key, AlertCircle } from 'lucide-react'
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  FormEvent,
+} from 'react'
+import {
+  Bot,
+  Send,
+  Upload,
+  X,
+  Lightbulb,
+  Timer,
+  Mic,
+} from 'lucide-react'
 
 interface Message {
   id: string
@@ -18,318 +32,302 @@ interface LumaAssistantProps {
   onScheduleTask: (minutes: number, seconds: number, action: 'on' | 'off') => void
 }
 
-export const LumaAssistant: React.FC<LumaAssistantProps> = ({ 
-  isOpen, 
-  onClose, 
-  onToggleLight, 
-  onScheduleTask 
+export const LumaAssistant: React.FC<LumaAssistantProps> = ({
+  isOpen,
+  onClose,
+  onToggleLight,
+  onScheduleTask,
 }) => {
-// Define quickActions array
-const quickActions = [
-  {
-    label: 'Ligar Luz',
-    icon: Lightbulb,
-    action: async () => {
-      await onToggleLight('on')
-    }
-  },
-  {
-    label: 'Desligar Luz',
-    icon: Lightbulb,
-    action: async () => {
-      await onToggleLight('off')
-    }
-  },
-  {
-    label: 'Agendar Ligar',
-    icon: Timer,
-    action: () => {
-      // Exemplo: agenda para ligar em 1 minuto
-      onScheduleTask(1, 0, 'on')
-    }
-  },
-  {
-    label: 'Agendar Desligar',
-    icon: Timer,
-    action: () => {
-      // Exemplo: agenda para desligar em 1 minuto
-      onScheduleTask(1, 0, 'off')
-    }
-  }
-]
+  /* ------------------------------ quick actions ----------------------------- */
+  const quickActions = [
+    {
+      label: 'Ligar Luz',
+      icon: Lightbulb,
+      action: async () => onToggleLight('on'),
+    },
+    {
+      label: 'Desligar Luz',
+      icon: Lightbulb,
+      action: async () => onToggleLight('off'),
+    },
+    {
+      label: 'Agendar Ligar',
+      icon: Timer,
+      action: () => onScheduleTask(1, 0, 'on'),
+    },
+    {
+      label: 'Agendar Desligar',
+      icon: Timer,
+      action: () => onScheduleTask(1, 0, 'off'),
+    },
+  ]
 
-
+  /* --------------------------------- state --------------------------------- */
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Sou a Luma, sua assistente Engenheira eletrica. Criada por Gildo Komba para ajudá-lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá-lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá-lo?',
-      timestamp: new Date()
-    }
+      content:
+        'Sou a Luma, sua assistente Engenheira elétrica, criada por Gildo Komba para ajudá‑lo com análises técnicas, diagnósticos e otimizações.\n\nPosso ajudá‑lo a:\n• Analisar dados do sistema\n• Controlar as luzes\n• Programar tarefas\n• Diagnosticar problemas\n• Configurar ESP32 e sensores\n\nComo posso ajudá‑lo?',
+      timestamp: new Date(),
+    },
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [apiKey, setApiKey] = useState('')
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
-  const [apiKeyError, setApiKeyError] = useState('')
+  const [isListening, setIsListening] = useState(false)
+
+  /* ------------------------------- references ------------------------------- */
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const streamingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const recognitionRef = useRef<any>(null)
 
-  const scrollToBottom = () => {
+  /* ---------------------------- helpers/utilities --------------------------- */
+  const scrollToBottom = () =>
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+  useEffect(scrollToBottom, [messages])
 
-  useEffect(() => {
-    const savedApiKey = localStorage.getItem('gemini_api_key')
-    if (savedApiKey) {
-      setApiKey(savedApiKey)
-    } else {
-      setShowApiKeyInput(true)
-    }
-  }, [])
+  /** Função genérica para adicionar mensagem do usuário e obter resposta da IA */
+  const submitMessage = useCallback(
+    async (messageContent: string) => {
+      if (!messageContent.trim() && selectedFiles.length === 0) return
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+      if (streamingTimeoutRef.current) clearTimeout(streamingTimeoutRef.current)
 
-    if (!input.trim() && selectedFiles.length === 0) return
+      /* ----- adiciona mensagem do usuário ----- */
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: messageContent,
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, userMessage])
+      setInput('')
+      setSelectedFiles([])
+      setIsLoading(true)
 
-    if (streamingTimeoutRef.current) {
-      clearTimeout(streamingTimeoutRef.current)
-    }
+      /* ----- placeholder da IA enquanto “digita” ----- */
+      const assistantId = (Date.now() + 1).toString()
+      const assistantPlaceholder: Message = {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        isStreaming: true,
+      }
+      setMessages(prev => [...prev, assistantPlaceholder])
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-      timestamp: new Date()
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    const currentInput = input
-    setInput('')
-    setSelectedFiles([])
-    setIsLoading(true)
-
-    const assistantMessageId = (Date.now() + 1).toString()
-    // Função para limpar e formatar a resposta da IA
-    function formatAIResponse(text: string): string {
-      // Remove asteriscos, marcadores de lista e excesso de espaços
-      let cleaned = text
-      .replace(/[*•\-]+/g, '') // Remove asteriscos, bullets e traços
-      .replace(/^\s*[\d]+\.\s*/gm, '') // Remove listas numeradas
-      .replace(/`{1,3}([\s\S]*?)`{1,3}/g, '$1') // Remove backticks de blocos de código
-      .replace(/\n{3,}/g, '\n\n') // Limita múltiplas quebras de linha
-      .replace(/[ ]{2,}/g, ' ') // Remove espaços duplos
-      .trim()
-
-      // Tenta formatar JSON se for detectado
+      /* ----------------------- chamada real à sua API ----------------------- */
       try {
-      if (
-        (cleaned.startsWith('{') && cleaned.endsWith('}')) ||
-        (cleaned.startsWith('[') && cleaned.endsWith(']'))
-      ) {
-        const parsed = JSON.parse(cleaned)
-        cleaned = JSON.stringify(parsed, null, 2)
-      }
-      } catch {
-      // Não é JSON válido, ignora
-      }
-
-      // Formata títulos Markdown (#, ##, ###) para negrito simples
-      cleaned = cleaned.replace(/^#{1,6}\s*(.*)$/gm, (_, title) => `**${title.trim()}**`)
-
-      return cleaned
-    }
-
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-      isStreaming: true
-    }
-    setMessages(prev => [...prev, assistantMessage])
-
-    try {
-      const response = await fetch(`https://api-lsts.onrender.com/prompt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: currentInput,
+        const response = await fetch('https://api-lsts.onrender.com/prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: messageContent }),
         })
-      })
 
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status}`)
+        if (!response.ok)
+          throw new Error(`HTTP Error: ${response.status.toString()}`)
+
+        const { message: aiResponse = 'Sem resposta da IA' } =
+          await response.json()
+
+        /* ------------- animação de “streaming” caractere a caractere ------------- */
+        let idx = 0
+        const streamNext = () => {
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    content: aiResponse.slice(0, ++idx),
+                    isStreaming: idx < aiResponse.length,
+                  }
+                : m,
+            ),
+          )
+          if (idx < aiResponse.length) {
+            streamingTimeoutRef.current = setTimeout(streamNext, 20)
+          }
+        }
+        streamNext()
+      } catch (err) {
+        console.error(err)
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === assistantId
+              ? { ...m, content: 'Erro ao gerar resposta.', isStreaming: false }
+              : m,
+          ),
+        )
+      } finally {
+        setIsLoading(false)
       }
+    },
+    [selectedFiles],
+  )
 
-      const result = await response.json()
-      const aiResponse = result.message || 'Sem resposta da IA'
-
-      simulateTextStreaming(aiResponse, assistantMessageId)
-
-    } catch (error) {
-      console.error('Erro ao processar mensagem:', error)
-
-      setMessages(prev => prev.map(msg =>
-        msg.id === assistantMessageId
-          ? { ...msg, content: 'Erro ao gerar resposta.', isStreaming: false }
-          : msg
-      ))
-    } finally {
-      setIsLoading(false)
-    }
+  /* ---------------------------- envio manual (Enter) ---------------------------- */
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    submitMessage(input)
   }
 
-  const simulateTextStreaming = (text: string, messageId: string, initialContent: string = '') => {
-    let currentIndex = 0
-    let displayedContent = initialContent
+  /* ----------------------- reconhecimento de voz (WebSpeech) ---------------------- */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('webkitSpeechRecognition' in window))
+      return
 
-    const streamNextChar = () => {
-      if (currentIndex < text.length) {
-        displayedContent += text[currentIndex]
-        currentIndex++
+    const recognition = new (window as any).webkitSpeechRecognition()
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.lang = 'pt-BR'
 
-        setMessages(prev => prev.map(msg =>
-          msg.id === messageId
-            ? { ...msg, content: displayedContent, isStreaming: true }
-            : msg
-        ))
-
-        streamingTimeoutRef.current = setTimeout(streamNextChar, 20)
-      } else {
-        setMessages(prev => prev.map(msg =>
-          msg.id === messageId
-            ? { ...msg, content: displayedContent, isStreaming: false }
-            : msg
-        ))
-      }
+    recognition.onresult = (event: any) => {
+      const transcript: string = event.results[0][0].transcript
+      setIsListening(false)
+      submitMessage(transcript) // <‑‑ envio imediato após captar voz
     }
 
-    streamNextChar()
-  }
+    recognition.onerror = (_event: any) => setIsListening(false)
+    recognition.onend = () => setIsListening(false)
 
+    recognitionRef.current = recognition
+    return () => recognition.stop()
+  }, [submitMessage])
 
-  
-  
-  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>): void {
-    const files = event.target.files
-    if (!files) return
-    const fileArray = Array.from(files)
-    setSelectedFiles(prev => [...prev, ...fileArray])
-    // Reset input so same file can be selected again if needed
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+  const toggleListening = () => {
+    const rec = recognitionRef.current
+    if (!rec) {
+      alert('Reconhecimento de voz não suportado neste navegador')
+      return
     }
+    if (isListening) rec.stop()
+    else rec.start()
+    setIsListening(!isListening)
   }
-  function removeFile(index: number): void {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+
+  /* ----------------------------- file management ---------------------------- */
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    setSelectedFiles(prev => [...prev, ...Array.from(e.target.files)])
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
-  function formatTime(timestamp: Date): React.ReactNode {
-    const date = new Date(timestamp)
+  const removeFile = (idx: number) =>
+    setSelectedFiles(prev => prev.filter((_, i) => i !== idx))
+
+  /* ------------------------------ time display ------------------------------ */
+  const formatTime = (date: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0')
     const now = new Date()
     const isToday =
       date.getDate() === now.getDate() &&
       date.getMonth() === now.getMonth() &&
       date.getFullYear() === now.getFullYear()
-
-    const pad = (n: number) => n.toString().padStart(2, '0')
     const timeStr = `${pad(date.getHours())}:${pad(date.getMinutes())}`
-
-    if (isToday) {
-      return `Hoje às ${timeStr}`
-    } else {
-      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${timeStr}`
-    }
+    return isToday
+      ? `Hoje às ${timeStr}`
+      : `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${timeStr}`
   }
+
+  /* -------------------------------------------------------------------------- */
+  /*                                  RENDER                                   */
+  /* -------------------------------------------------------------------------- */
+  if (!isOpen) return null
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-200 dark:border-gray-700 z-50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-600 to-blue-600">
+    <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-700 flex flex-col z-50">
+      {/* ---------------------------- HEADER ---------------------------- */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gradient-to-r from-purple-600 to-blue-600">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
             <Bot size={20} className="text-white" />
           </div>
           <div>
             <h3 className="font-semibold text-white">Luma</h3>
-            <p className="text-xs text-white/80">
-              Luma AI
-            </p>
+            <p className="text-xs text-white/80">Luma&nbsp;AI</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg text-white transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-white/20 rounded-lg text-white"
+        >
+          <X size={18} />
+        </button>
       </div>
 
-      {/* Quick Actions */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Ações Rápidas</h4>
+      {/* ------------------------- QUICK ACTIONS ------------------------ */}
+      <div className="p-4 border-b border-gray-700">
+        <h4 className="text-sm font-medium text-gray-300 mb-3">Ações Rápidas</h4>
         <div className="grid grid-cols-2 gap-2">
-          {quickActions.map((action, index) => (
+          {quickActions.map(({ label, icon: Icon, action }) => (
             <button
-              key={index}
-              onClick={action.action}
-              className="flex items-center gap-2 p-2 text-xs bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors text-gray-700 dark:text-gray-300"
+              key={label}
+              onClick={action}
+              className="flex items-center gap-2 p-2 text-xs bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300"
             >
-              <action.icon size={14} />
-              {action.label}
+              <Icon size={14} />
+              {label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Messages */}
+      {/* --------------------------- MESSAGES --------------------------- */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+        {messages.map(m => (
           <div
-            key={message.id}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            key={m.id}
+            className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
               className={`max-w-[85%] rounded-lg px-4 py-3 ${
-                message.role === 'user'
+                m.role === 'user'
                   ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                  : 'bg-gray-700 text-gray-100'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-              {message.isStreaming && (
-                <div className="flex items-center gap-1 mt-2">
-                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse"></div>
-                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                {m.content}
+              </p>
+              {m.isStreaming && (
+                <div className="flex gap-1 mt-2">
+                  <div className="w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
+                  <div
+                    className="w-1 h-1 bg-purple-400 rounded-full animate-pulse"
+                    style={{ animationDelay: '0.2s' }}
+                  />
+                  <div
+                    className="w-1 h-1 bg-purple-400 rounded-full animate-pulse"
+                    style={{ animationDelay: '0.4s' }}
+                  />
                 </div>
               )}
-              <p className={`text-xs mt-2 ${
-                message.role === 'user' ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
-              }`}>
-                {formatTime(message.timestamp)}
+              <p
+                className={`text-xs mt-2 ${
+                  m.role === 'user'
+                    ? 'text-white/70'
+                    : 'text-gray-400'
+                }`}
+              >
+                {formatTime(m.timestamp)}
               </p>
             </div>
           </div>
         ))}
-        
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            <div className="bg-gray-700 rounded-lg px-4 py-3">
+              <div className="flex gap-2">
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
+                <div
+                  className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                  style={{ animationDelay: '0.1s' }}
+                />
+                <div
+                  className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                  style={{ animationDelay: '0.2s' }}
+                />
               </div>
             </div>
           </div>
@@ -337,19 +335,19 @@ const quickActions = [
         <div ref={messagesEndRef} />
       </div>
 
-      {/* File Preview */}
+      {/* ------------------------- FILE PREVIEW ------------------------- */}
       {selectedFiles.length > 0 && (
-        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-4 py-2 border-t border-gray-700">
           <div className="flex flex-wrap gap-2">
-            {selectedFiles.map((file, index) => (
+            {selectedFiles.map((file, idx) => (
               <div
-                key={index}
-                className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-1 text-sm"
+                key={idx}
+                className="flex items-center gap-2 bg-gray-700 rounded-lg px-3 py-1 text-sm"
               >
                 <span className="truncate max-w-[120px]">{file.name}</span>
                 <button
-                  onClick={() => removeFile(index)}
-                  className="text-red-500 hover:text-red-700"
+                  onClick={() => removeFile(idx)}
+                  className="text-red-400 hover:text-red-500"
                 >
                   <X size={14} />
                 </button>
@@ -359,24 +357,36 @@ const quickActions = [
         </div>
       )}
 
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua pergunta ou comando..."
-              className="w-full resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-              rows={2}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSubmit(e)
-                }
-              }}
-            />
-          </div>
+      {/* ----------------------------- INPUT ---------------------------- */}
+      <form
+        onSubmit={handleSubmit}
+        className="p-4 border-t border-gray-700 flex items-end gap-2"
+      >
+        <textarea
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="Digite sua pergunta ou comando..."
+          rows={2}
+          className="flex-1 resize-none rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 placeholder-gray-400 focus:border-purple-500 focus:ring-purple-500"
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleSubmit(e)
+            }
+          }}
+        />
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={`p-2 rounded-lg ${
+              isListening
+                ? 'bg-red-500 text-white animate-pulse'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <Mic size={18} />
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -386,16 +396,9 @@ const quickActions = [
             className="hidden"
           />
           <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-          >
-            <Upload size={18} />
-          </button>
-          <button
             type="submit"
             disabled={isLoading || (!input.trim() && selectedFiles.length === 0)}
-            className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-lg transition-all duration-200 disabled:cursor-not-allowed"
+            className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-500 disabled:to-gray-500 text-white rounded-lg"
           >
             <Send size={18} />
           </button>
@@ -404,40 +407,35 @@ const quickActions = [
     </div>
   )
 }
-// Função de exemplo para onToggleLight, pode ser substituída por lógica real
-async function onToggleLight(status: 'on' | 'off'): Promise<void> {
-  // Aqui você pode integrar com seu sistema de automação real
-  // Por exemplo, enviar uma requisição para um endpoint que controla a luz
+
+/* --------------------------- EXEMPLOS DE USO --------------------------- */
+export async function onToggleLight(status: 'on' | 'off') {
   try {
-    await fetch(`https://api-lsts.onrender.com/controlLigth`, {
+    await fetch('https://api-lsts.onrender.com/controlLigth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
-    // Opcional: mostrar feedback ao usuário
     console.log(`Luz ${status === 'on' ? 'ligada' : 'desligada'}`)
-  } catch (error) {
-    console.error('Erro ao alternar luz:', error)
+  } catch (err) {
+    console.error(err)
   }
 }
-function onScheduleTask(minutes: number, seconds: number, action: 'on' | 'off') {
-  // Exemplo: Integração com sistema de automação para agendar tarefa
-  // Aqui você pode substituir por lógica real, como chamada de API ou manipulação de estado
+
+export function onScheduleTask(
+  minutes: number,
+  seconds: number,
+  action: 'on' | 'off',
+) {
   fetch('/api/schedule', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      minutes,
-      seconds,
-      action,
-    }),
+    body: JSON.stringify({ minutes, seconds, action }),
   })
-    .then(() => {
+    .then(() =>
       console.log(
-        `Tarefa agendada: ${action === 'on' ? 'Ligar' : 'Desligar'} em ${minutes}m ${seconds}s`
-      )
-    })
-    .catch((error) => {
-      console.error('Erro ao agendar tarefa:', error)
-    })
+        `Tarefa agendada: ${action === 'on' ? 'Ligar' : 'Desligar'} em ${minutes}m ${seconds}s`,
+      ),
+    )
+    .catch(err => console.error(err))
 }
