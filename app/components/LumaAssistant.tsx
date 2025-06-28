@@ -99,11 +99,6 @@ const quickActions = [
 
     if (!input.trim() && selectedFiles.length === 0) return
 
-    if (!apiKey) {
-      setShowApiKeyInput(true)
-      return
-    }
-
     if (streamingTimeoutRef.current) {
       clearTimeout(streamingTimeoutRef.current)
     }
@@ -222,20 +217,6 @@ const quickActions = [
     streamNextChar()
   }
 
-  // Handle API Key submit
-  const handleApiKeySubmit = () => {
-    if (!apiKey.trim()) {
-      setApiKeyError('A API key não pode estar vazia.')
-      return
-    }
-    try {
-      localStorage.setItem('gemini_api_key', apiKey)
-      setShowApiKeyInput(false)
-      setApiKeyError('')
-    } catch (error) {
-      setApiKeyError('Erro ao salvar a API key.')
-    }
-  }
 
   
   
@@ -271,65 +252,6 @@ const quickActions = [
   }
   return (
     <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 shadow-2xl border-l border-gray-200 dark:border-gray-700 z-50 flex flex-col">
-      {/* API Key Modal */}
-      {showApiKeyInput && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 m-4 max-w-sm w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <Key className="w-6 h-6 text-purple-600" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Configurar API Key
-              </h3>
-            </div>
-            
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-              Para usar a IA real do Google Gemini, você precisa de uma API key. 
-              <a 
-                href="https://aistudio.google.com/app/apikey" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-purple-600 hover:underline ml-1"
-              >
-                Obtenha aqui
-              </a>
-            </p>
-            
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Cole sua API key aqui..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 mb-3"
-            />
-            
-            {apiKeyError && (
-              <div className="flex items-center gap-2 text-red-600 text-sm mb-3">
-                <AlertCircle size={16} />
-                {apiKeyError}
-              </div>
-            )}
-            
-            <div className="flex gap-2">
-              <button
-                onClick={handleApiKeySubmit}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Salvar
-              </button>
-              <button
-                onClick={() => {
-                  setShowApiKeyInput(false)
-                  setApiKeyError('')
-                }}
-                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-600 to-blue-600">
         <div className="flex items-center gap-3">
@@ -344,13 +266,6 @@ const quickActions = [
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowApiKeyInput(true)}
-            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
-            title="Configurar API Key"
-          >
-            <Key size={16} />
-          </button>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/20 rounded-lg text-white transition-colors"

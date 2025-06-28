@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Alerta de Falha nos Postes</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    .header {
+      background-color: #b91c1c;
+      color: #ffffff;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .header h2 {
+      margin: 0;
+    }
+
+    .content {
+      padding: 30px 20px;
+    }
+
+    .poste {
+      border-left: 5px solid #dc2626;
+      background-color: #fef2f2;
+      color: #7f1d1d;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 12px;
+    }
+
+    .poste strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .timestamp {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 20px;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #999999;
+      padding: 20px;
+      background-color: #f9fafb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>🚨 Alerta: Falha Detectada em Postes</h2>
+    </div>
+    <div class="content">
+      <p>O sistema identificou falhas nos seguintes postes:</p>
+
+      <!-- Poste com problema -->
+      {{postes}}
+
+      <div class="timestamp">
+        Última atualização: {{time}}
+      </div>
+    </div>
+    <div class="footer">
+      Esta é uma mensagem automática do sistema de monitoramento.
+    </div>
+  </div>
+</body>
+</html>
