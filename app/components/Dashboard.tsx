@@ -19,7 +19,7 @@ export const Dashboard: React.FC = () => {
     console.log(`Scheduling task: ${action} in ${minutes}m ${seconds}s`)
   }
 
-  if (error) {
+ /* if (error) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 max-w-md w-full border border-red-200 dark:border-red-800">
@@ -38,7 +38,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
     )
-  }
+  }*/
 
   async function onToggleLight(status: 'on' | 'off'): Promise<void> {
     try {
