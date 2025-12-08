@@ -2,7 +2,10 @@ import { NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
   try {
-    const FIREBASE_BASE_URL = 'https://esp-api-10fa5-default-rtdb.firebaseio.com'
+    const FIREBASE_BASE_URL = process.env.FIREBASE_BASE_URL
+    if (!FIREBASE_BASE_URL) {
+      throw new Error('FIREBASE_BASE_URL is not defined in environment variables')
+    }
     
     const [circuitResponse, ledResponse, sistemaResponse] = await Promise.all([
       fetch(`${FIREBASE_BASE_URL}/circuito.json`, {
