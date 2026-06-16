@@ -121,7 +121,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 
       /* ----------------------- chamada real à sua API ----------------------- */
       try {
-        const response = await fetch('https://api-lsts.onrender.com/prompt', {
+        const response = await fetch('https://api-3caj.onrender.com/prompt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: messageContent }),
