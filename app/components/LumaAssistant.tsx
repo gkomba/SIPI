@@ -411,7 +411,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 /* --------------------------- EXEMPLOS DE USO --------------------------- */
 export async function onToggleLight(status: 'on' | 'off') {
   try {
-    await fetch('https://api-lsts.onrender.com/controlLigth', {
+    await fetch('https://api-3caj.onrender.com/controlLigth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
