@@ -61,7 +61,7 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({ data, loading, isOnlin
 
     (async () => {
       try {
-        const res = await fetch("https://api-lsts.onrender.com/alert", {
+        const res = await fetch("https://api-3caj.onrender.com/alert", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
