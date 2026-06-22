@@ -121,7 +121,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 
       /* ----------------------- chamada real à sua API ----------------------- */
       try {
-        const response = await fetch('https://api-3caj.onrender.com/prompt', {
+        const response = await fetch('https://api-delta-amber-23.vercel.app/prompt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: messageContent }),
@@ -411,7 +411,7 @@ export const LumaAssistant: React.FC<LumaAssistantProps> = ({
 /* --------------------------- EXEMPLOS DE USO --------------------------- */
 export async function onToggleLight(status: 'on' | 'off') {
   try {
-    await fetch('https://api-3caj.onrender.com/controlLigth', {
+    await fetch('https://api-delta-amber-23.vercel.app/prompt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
